@@ -1,7 +1,15 @@
 import os
+import time
 
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, g, render_template, request
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+)
 
 # What the visitor sees for each backend answer that is not a Weather report.
 FRIENDLY_MESSAGES = {
@@ -24,6 +32,26 @@ def create_app():
     # No default: where the backend runs depends on the deployment, so a
     # missing BACKEND_URL stops the app at startup instead of failing later.
     backend_url = os.environ["BACKEND_URL"]
+
+    # The backend's RED metrics, same names and labels, so one dashboard query
+    # covers both services. Metrics go in this app's own registry, not
+    # prometheus-client's global one, so every create_app() (one per test)
+    # starts from zero. gunicorn runs one worker, so this one registry sees
+    # every request the pod answers.
+    registry = CollectorRegistry()
+    # RED: rate and errors from the counter, duration from the histogram.
+    http_requests = Counter(
+        "http_requests_total",
+        "HTTP requests answered, by route and status",
+        ["service", "endpoint", "status"],
+        registry=registry,
+    )
+    http_request_duration = Histogram(
+        "http_request_duration_seconds",
+        "Time to answer an HTTP request, by route",
+        ["service", "endpoint"],
+        registry=registry,
+    )
 
     def call_backend(path, params=None, timeout=BACKEND_TIMEOUT_SECONDS):
         """GET one backend endpoint; raises requests.RequestException if it can't."""
@@ -51,6 +79,30 @@ def create_app():
         # Anything else, e.g. a 500 from a crashed backend, is our upstream failing.
         app.logger.warning("Backend answered %s", answer.status_code)
         return None, 502
+
+    @app.before_request
+    def start_timer():
+        g.request_started = time.perf_counter()
+
+    @app.after_request
+    def count_request(response):
+        # The route ("/"), never the raw path, so a scanner trying many paths
+        # can't create many label values. A 404 for an unknown path (or a
+        # 405) has no route.
+        endpoint = request.url_rule.rule if request.url_rule else "unmatched"
+        # Probes and scrapes are not visitors' traffic.
+        if endpoint not in ("/healthz", "/metrics"):
+            http_requests.labels(
+                service="frontend", endpoint=endpoint, status=response.status_code
+            ).inc()
+            http_request_duration.labels(service="frontend", endpoint=endpoint).observe(
+                time.perf_counter() - g.request_started
+            )
+        return response
+
+    @app.get("/metrics")
+    def metrics():
+        return generate_latest(registry), {"Content-Type": CONTENT_TYPE_LATEST}
 
     @app.get("/healthz")
     def healthz():
