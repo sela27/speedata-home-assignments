@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- SkyWatch ----------------------------------------------------------------
+# Bring-up writes everything it generates under .state/: the SSH key pair, the
+# host kubeconfig and the rendered cloud-init files. None of it is committed.
+.state/
+
+# Safety net, in case a key or a kubeconfig is ever written somewhere else.
+id_rsa*
+id_ed25519*
+*.pem
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
