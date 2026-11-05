@@ -2,12 +2,12 @@
 
 # Use the Node network, not the Uplink (eth0): the node's address, and the NIC
 # flannel carries pod traffic on. scripts/1-vms.ps1 names that NIC skywatch0.
-node-ip: {{ ansible_host }}
+node-ip: {{ cp_address }}
 flannel-iface: skywatch0
 
 # The API server certificate must be valid for the address the host's kubeconfig uses.
 tls-san:
-  - {{ ansible_host }}
+  - {{ cp_address }}
 
 # No application workloads on the control plane.
 node-taint:

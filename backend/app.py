@@ -135,12 +135,17 @@ def create_app():
         response.raise_for_status()
         return response.json()
 
+    def cache_get(cache, name, key):
+        """cache.get(key), counted in cache_lookups as a hit or a miss of cache=name."""
+        value = cache.get(key)
+        result = "miss" if value is None else "hit"
+        cache_lookups.labels(cache=name, result=result).inc()
+        return value
+
     def city_lookup(name):
         """The most populous place with this name, or None if there is none."""
         key = name.casefold()  # "Berlin" and "BERLIN" are the same city
-        place = city_lookups.get(key)
-        result = "miss" if place is None else "hit"
-        cache_lookups.labels(cache="city_lookup", result=result).inc()
+        place = cache_get(city_lookups, "city_lookup", key)
         if place is not None:
             return place
         lookup_result = call_open_meteo(
@@ -157,9 +162,7 @@ def create_app():
 
     def weather_report(place):
         coordinates = (place["latitude"], place["longitude"])
-        report = weather_reports.get(coordinates)
-        result = "miss" if report is None else "hit"
-        cache_lookups.labels(cache="weather_report", result=result).inc()
+        report = cache_get(weather_reports, "weather_report", coordinates)
         if report is not None:
             return report
         current_weather = call_open_meteo(
