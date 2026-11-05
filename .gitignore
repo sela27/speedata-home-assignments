@@ -231,4 +231,3 @@ id_ed25519*
 kubeconfig
 kubeconfig.yaml
 *.kubeconfig
-k3s.yaml

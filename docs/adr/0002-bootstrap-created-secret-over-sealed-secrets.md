@@ -1,6 +1,6 @@
 # Grafana admin secret is created at bootstrap, not with Sealed Secrets
 
-The only secret this project has to manage is Grafana's admin password. Ansible generates a random password during cluster bootstrap and creates the `grafana-admin` Secret once (re-runs never rotate it); the monitoring values only reference it through `admin.existingSecret`, so Git holds no secret material at all. We rejected Sealed Secrets because a SealedSecret is encrypted to one cluster's controller key, and this project recreates its cluster from scratch, on a reviewer's machine and after every `down.ps1`. The committed file would not decrypt there, and the workarounds either ship the private key outside Git or have bootstrap push re-sealed files to the repo.
+The only secret this project manages is Grafana's admin password: Ansible generates it during Bring-up and creates the `grafana-admin` Secret once (re-runs never rotate it), and the monitoring values reference it only through `admin.existingSecret`, so Git holds no secret material. We rejected Sealed Secrets because a SealedSecret is encrypted to one cluster's controller key, and this project recreates its cluster from scratch, on a reviewer's machine and after every `down.ps1`. The committed file would not decrypt there, and the workarounds either ship the private key outside Git or have Bring-up push re-sealed files to the repo.
 
 ## Consequences
 

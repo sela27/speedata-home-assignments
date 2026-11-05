@@ -12,6 +12,8 @@ A small weather-query app (a Flask frontend and a backend API that calls Open-Me
 
 Windows 11 Pro with Hyper-V. Other host operating systems are not supported.
 
+Bring-up writes everything it generates (the SSH key pair, the host kubeconfig, rendered cloud-init files) under `.state/`, which Git ignores.
+
 ## Where to look
 
 - The spec: [issue #1](https://github.com/sela27/speedata-home-assignments/issues/1). Its sub-issues are the tickets, with their order of work.
