@@ -1,0 +1,12 @@
+# The K3s release on every node: the stable channel's on 2026-11-05 (update.k3s.io).
+k3s_version: v1.37.2+k3s1
+
+# Node network addresses, the ones scripts/1-vms.ps1 gives the VMs.
+cp_address: 192.168.60.10
+worker1_address: 192.168.60.11
+worker2_address: 192.168.60.12
+
+# The default user of Ubuntu cloud images. 1-vms injects the SSH key for it.
+ansible_user: ubuntu
+# Ubuntu 24.04's Python. Naming it stops Ansible's interpreter discovery warning.
+ansible_python_interpreter: /usr/bin/python3

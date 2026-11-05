@@ -1,0 +1,12 @@
+# Static inventory: the three VMs scripts/1-vms.ps1 creates. Ansible reaches
+# them on their Node network addresses, which group_vars/all.yml holds.
+server:
+  hosts:
+    skywatch-cp:
+      ansible_host: "{{ cp_address }}"
+agents:
+  hosts:
+    skywatch-worker1:
+      ansible_host: "{{ worker1_address }}"
+    skywatch-worker2:
+      ansible_host: "{{ worker2_address }}"
