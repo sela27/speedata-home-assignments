@@ -3,8 +3,10 @@ import os
 import requests
 from flask import Flask, request
 
-# Conditions for each WMO weather code that Open-Meteo returns
-# (the table in Open-Meteo's forecast API docs).
+# Conditions for each WMO weather code, exactly as in the "WMO Weather
+# interpretation codes (WW)" table at https://open-meteo.com/en/docs.
+# Codes 96 and 99 (hail) come only from models with an explicit hail forecast;
+# the other models report thunderstorms as 95 and 97.
 CONDITIONS = {
     0: "Clear sky",
     1: "Mainly clear",
@@ -57,16 +59,16 @@ def create_app():
 
     def city_lookup(name):
         """The most populous place with this name, or None if there is none."""
-        found = call_open_meteo(
+        lookup_result = call_open_meteo(
             geocoding_url,
             {"name": name, "count": 1, "language": "en", "format": "json"},
         )
         # Open-Meteo leaves out "results" entirely when nothing matches.
-        places = found.get("results", [])
+        places = lookup_result.get("results", [])
         return places[0] if places else None
 
     def weather_report(place):
-        forecast = call_open_meteo(
+        current_weather = call_open_meteo(
             forecast_url,
             {
                 "latitude": place["latitude"],
@@ -74,10 +76,11 @@ def create_app():
                 "current": "temperature_2m,weather_code",
             },
         )
-        current = forecast["current"]
+        current = current_weather["current"]
         return {
             "city": place["name"],
-            "country": place["country"],
+            # Open-Meteo leaves out country for some places.
+            "country": place.get("country", ""),
             "temperature_c": current["temperature_2m"],
             "conditions": CONDITIONS.get(current["weather_code"], "Unknown"),
         }
@@ -98,6 +101,10 @@ def create_app():
             return weather_report(place)
         except requests.RequestException as error:
             app.logger.warning("Open-Meteo call failed: %s", error)
+            return {"error": "Weather service unavailable"}, 502
+        except (KeyError, TypeError) as error:
+            # An answer without the fields we read, e.g. no "current".
+            app.logger.warning("Open-Meteo answer unreadable: %r", error)
             return {"error": "Weather service unavailable"}, 502
 
     return app
