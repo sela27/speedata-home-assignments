@@ -1,0 +1,12 @@
+-r requirements.txt
+# Direct dependencies:
+pytest==9.2.0
+responses==0.26.3
+ruff==0.17.3
+# What they pull in (resolved in a clean venv, Python 3.14.3):
+colorama==0.4.6 ; sys_platform == "win32"
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+pygments==2.21.0
+pyyaml==6.0.3
