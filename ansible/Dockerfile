@@ -35,9 +35,17 @@ RUN python -m venv /venv \
     && ansible-galaxy collection install -r /tmp/requirements.yml -p /usr/share/ansible/collections
 
 COPY --from=helm /tmp/linux-amd64/helm /usr/local/bin/helm
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN groupadd --gid 10001 ansible \
     && useradd --uid 10001 --gid 10001 --create-home --shell /bin/sh ansible
 USER 10001:10001
 
+# Host keys are not checked: the nodes are recreated on every Bring-up, so
+# their host keys change, and the container keeps no known_hosts between runs.
+# The Node network is a host-only switch, so no other machine sits on that path.
+ENV ANSIBLE_HOST_KEY_CHECKING=False
+
+# entrypoint.sh copies the SSH key from the mounted .state/ (see the script).
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["ansible", "--version"]
