@@ -16,8 +16,9 @@ def client(monkeypatch):
 
 
 @pytest.fixture
-def backend():
-    """Fake the backend at the HTTP layer; any unregistered call fails."""
+def backend_with_version():
+    """Fake the backend at the HTTP layer, with /healthz (the version every page
+    asks for) already registered; any unregistered call fails."""
     with responses.RequestsMock() as fake:
         fake.get(f"{BACKEND_URL}/healthz", json={"status": "ok", "version": "8d1e4f0"})
         yield fake
@@ -43,7 +44,7 @@ def requests_counted(client, endpoint, status):
     )
 
 
-def test_page_request_is_counted_and_healthz_is_not(client, backend):
+def test_page_request_is_counted_and_healthz_is_not(client, backend_with_version):
     client.get("/")  # first visit: only the backend's version is asked for
     client.get("/healthz")
 
@@ -53,8 +54,8 @@ def test_page_request_is_counted_and_healthz_is_not(client, backend):
     assert requests_counted(client, "/metrics", "200") is None
 
 
-def test_page_requests_are_counted_by_status_and_timed(client, backend):
-    backend.get(
+def test_page_requests_are_counted_by_status_and_timed(client, backend_with_version):
+    backend_with_version.get(
         f"{BACKEND_URL}/api/weather",
         match=[matchers.query_param_matcher({"city": "Berlin"})],
         json={
@@ -64,7 +65,7 @@ def test_page_requests_are_counted_by_status_and_timed(client, backend):
             "conditions": "Clear sky",
         },
     )
-    backend.get(
+    backend_with_version.get(
         f"{BACKEND_URL}/api/weather",
         match=[matchers.query_param_matcher({"city": "Xyzzyville"})],
         status=404,

@@ -20,7 +20,7 @@ CLEAR_SKY = {"current": {"temperature_2m": 12.3, "weather_code": 0}}
 
 @pytest.fixture
 def client(monkeypatch):
-    for name in ("GEOCODING_URL", "FORECAST_URL"):
+    for name in ("GEOCODING_URL", "FORECAST_URL", "HTTP_TIMEOUT_SECONDS"):
         monkeypatch.delenv(name, raising=False)
     return create_app().test_client()
 
