@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyWatch</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+    .message { color: #b00020; }
+    footer { margin-top: 3rem; color: #666; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <h1>SkyWatch</h1>
+
+  {# A plain GET form: the browser sends /?city=..., no JavaScript needed. #}
+  <form action="/" method="get">
+    <label for="city">City</label>
+    <input id="city" name="city">
+    <button type="submit">Show weather</button>
+  </form>
+
+  {% if report %}
+  <section>
+    <h2>{{ report.city }}{% if report.country %}, {{ report.country }}{% endif %}</h2>
+    <p>{{ report.temperature_c }} °C, {{ report.conditions }}</p>
+  </section>
+  {% endif %}
+
+  {% if message %}
+  <p class="message">{{ message }}</p>
+  {% endif %}
+
+  <footer>
+    Frontend {{ frontend_version }} · Backend {{ backend_version }}
+  </footer>
+</body>
+</html>
