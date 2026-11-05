@@ -1,0 +1,5 @@
+# Send only what the image needs; everything else stays out of the build context.
+*
+!app.py
+!requirements.txt
+!templates/

@@ -1,4 +1,6 @@
 import os
+import threading
+import time
 
 import requests
 from flask import Flask, request
@@ -40,6 +42,35 @@ CONDITIONS = {
 }
 
 
+class TTLCache:
+    """Remembers values by key, each for ttl_seconds after it was put.
+
+    Safe to share between gunicorn's threads: the lock makes each get and put
+    one step, so two threads can never both delete the same expired entry.
+    """
+
+    def __init__(self, ttl_seconds):
+        self.ttl_seconds = ttl_seconds
+        self.entries = {}  # key -> (value, expires_at)
+        self.lock = threading.Lock()
+
+    def get(self, key):
+        """The value stored under key, or None if there is none or it expired."""
+        with self.lock:
+            entry = self.entries.get(key)
+            if entry is None:
+                return None
+            value, expires_at = entry
+            if time.monotonic() >= expires_at:
+                del self.entries[key]
+                return None
+            return value
+
+    def put(self, key, value):
+        with self.lock:
+            self.entries[key] = (value, time.monotonic() + self.ttl_seconds)
+
+
 def create_app():
     app = Flask(__name__)
     version = os.environ.get("APP_VERSION", "dev")
@@ -50,6 +81,11 @@ def create_app():
         "FORECAST_URL", "https://api.open-meteo.com/v1/forecast"
     )
     timeout = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "5"))
+    # A place does not move, so its City lookup is kept for a day; a Weather
+    # report is a snapshot of now, so it is kept for 10 minutes. Together they
+    # keep load tests well under Open-Meteo's free limits.
+    city_lookups = TTLCache(ttl_seconds=24 * 60 * 60)
+    weather_reports = TTLCache(ttl_seconds=10 * 60)
 
     def call_open_meteo(url, params):
         """GET one Open-Meteo API; raises requests.RequestException on any failure."""
@@ -59,15 +95,26 @@ def create_app():
 
     def city_lookup(name):
         """The most populous place with this name, or None if there is none."""
+        key = name.casefold()  # "Berlin" and "BERLIN" are the same city
+        place = city_lookups.get(key)
+        if place is not None:
+            return place
         lookup_result = call_open_meteo(
             geocoding_url,
             {"name": name, "count": 1, "language": "en", "format": "json"},
         )
         # Open-Meteo leaves out "results" entirely when nothing matches.
         places = lookup_result.get("results", [])
-        return places[0] if places else None
+        if not places:
+            return None
+        city_lookups.put(key, places[0])
+        return places[0]
 
     def weather_report(place):
+        coordinates = (place["latitude"], place["longitude"])
+        report = weather_reports.get(coordinates)
+        if report is not None:
+            return report
         current_weather = call_open_meteo(
             forecast_url,
             {
@@ -77,13 +124,15 @@ def create_app():
             },
         )
         current = current_weather["current"]
-        return {
+        report = {
             "city": place["name"],
             # Open-Meteo leaves out country for some places.
             "country": place.get("country", ""),
             "temperature_c": current["temperature_2m"],
             "conditions": CONDITIONS.get(current["weather_code"], "Unknown"),
         }
+        weather_reports.put(coordinates, report)
+        return report
 
     @app.get("/healthz")
     def healthz():
