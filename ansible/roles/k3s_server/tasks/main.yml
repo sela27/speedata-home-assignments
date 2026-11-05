@@ -17,12 +17,14 @@
 
 - name: Read the installed K3s version
   ansible.builtin.command: /usr/local/bin/k3s --version
-  register: k3s_server_installed
+  register: k3s_server_installed_version
   changed_when: false
   failed_when: false   # fails when K3s is not installed yet; stdout is then empty
 
+# The output reads "k3s version v1.37.2+k3s1 (f6973cb8) ...". Compare whole words, so a pin
+# of v1.37.2+k3s1 does not match v1.37.2+k3s10. No K3s: no words, so it installs.
 - name: Install K3s {{ k3s_version }}
-  when: k3s_version not in k3s_server_installed.stdout
+  when: k3s_version not in k3s_server_installed_version.stdout.split()
   block:
     # The official installer, taken from the same release tag as the binary it installs.
     # force: a copy left by an earlier install may come from another tag.
