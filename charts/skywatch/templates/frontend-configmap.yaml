@@ -1,0 +1,13 @@
+# The frontend's environment, from values.frontend.config. Quoted, because
+# ConfigMap values must be strings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "skywatch.frontend.name" . }}
+  labels:
+    {{- include "skywatch.labels" . | nindent 4 }}
+    {{- include "skywatch.frontend.selectorLabels" . | nindent 4 }}
+data:
+  {{- range $name, $value := .Values.frontend.config }}
+  {{ $name }}: {{ $value | quote }}
+  {{- end }}
