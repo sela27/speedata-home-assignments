@@ -28,19 +28,24 @@ jobs:
           cache: pip
           cache-dependency-path: "*/requirements-dev.txt"
 
-      # Adding the frontend: the "backend" install and pytest steps each get a
-      # frontend twin, and "frontend" joins both ruff commands.
       - name: Install backend dev dependencies
         run: pip install -r backend/requirements-dev.txt
 
+      - name: Install frontend dev dependencies
+        run: pip install -r frontend/requirements-dev.txt
+
       - name: ruff check
-        run: ruff check backend
+        run: ruff check backend frontend
 
       - name: ruff format --check
-        run: ruff format --check backend
+        run: ruff format --check backend frontend
 
       # One step per service: two app.py modules must never meet in one
       # pytest session.
       - name: pytest backend
         working-directory: backend
+        run: pytest
+
+      - name: pytest frontend
+        working-directory: frontend
         run: pytest
