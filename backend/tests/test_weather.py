@@ -1,5 +1,3 @@
-import sys
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -54,16 +52,6 @@ def clock(monkeypatch):
     fake = FakeClock()
     monkeypatch.setattr(time, "monotonic", fake)
     return fake
-
-
-@pytest.fixture
-def fast_thread_switching():
-    """Make threads take turns every microsecond instead of every 5 ms, so a
-    race shows up within a short test."""
-    default = sys.getswitchinterval()
-    sys.setswitchinterval(1e-6)
-    yield
-    sys.setswitchinterval(default)
 
 
 def fake_city_lookup(fake, name, places, *, url=GEOCODING_URL, also_match=()):
@@ -342,25 +330,29 @@ def test_weather_service_unavailable_is_not_cached(client, open_meteo):
 
 
 def test_concurrent_requests_for_the_same_city_all_get_its_weather_report(
-    client, open_meteo, clock, fast_thread_switching
+    client, open_meteo, clock, monkeypatch
 ):
     fake_city_lookup(open_meteo, "Berlin", [BERLIN])
     fake_current_weather(open_meteo, BERLIN, temperature=12.3, weather_code=0)
     expected = client.get("/api/weather?city=Berlin").get_json()
-    threads = 16
-    all_at_once = threading.Barrier(threads, timeout=10)
+    clock.advance(10 * 60)  # the cached Weather report has just expired
+
+    # The cache reads the clock after finding an entry and before deleting it
+    # as expired. A slow clock holds every thread in that gap at once: without
+    # the cache's lock they all delete the same entry, and all but the first
+    # fail with a KeyError, which the visitor sees as a 502.
+    def slow_clock():
+        time.sleep(0.05)
+        return clock()
+
+    monkeypatch.setattr(time, "monotonic", slow_clock)
 
     def ask(_):
-        all_at_once.wait()
         # One test client per thread, all sharing one app and so one cache.
         return client.application.test_client().get("/api/weather?city=Berlin")
 
-    # A race shows only when a thread switch lands inside the cache's few
-    # lines, so the burst is repeated until that is all but certain.
-    with ThreadPoolExecutor(max_workers=threads) as pool:
-        for _ in range(100):
-            clock.advance(10 * 60)  # every thread finds an expired Weather report
-            answers = list(pool.map(ask, range(threads)))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        answers = list(pool.map(ask, range(8)))
 
-            assert [answer.status_code for answer in answers] == [200] * threads
-            assert all(answer.get_json() == expected for answer in answers)
+    assert [answer.status_code for answer in answers] == [200] * 8
+    assert all(answer.get_json() == expected for answer in answers)
