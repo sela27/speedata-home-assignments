@@ -26,13 +26,15 @@
 - name: Install K3s {{ k3s_version }}
   when: k3s_version not in k3s_server_installed_version.stdout.split()
   block:
-    # The official installer, taken from the same release tag as the binary it installs.
+    # The official installer, taken from the same release tag as the binary it installs,
+    # and checked against that tag's pinned checksum (group_vars/all.yml).
     # force: a copy left by an earlier install may come from another tag.
     - name: Download the K3s installer
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh
         dest: /tmp/k3s-install.sh
         mode: "0700"
+        checksum: sha256:{{ k3s_installer_sha256 }}
         force: true
 
     # Installs the binary and the k3s systemd service, then (re)starts K3s.
