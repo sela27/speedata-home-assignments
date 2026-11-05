@@ -1,0 +1,5 @@
+# Ansible collections for the Ansible container (see Dockerfile).
+collections:
+  # Kubernetes and Helm modules. They run inside the container, so Helm stays off the nodes.
+  - name: kubernetes.core
+    version: 6.6.0

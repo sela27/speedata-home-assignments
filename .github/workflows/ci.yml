@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least privilege: the default token can only read the repository.
+permissions:
+  contents: read
+
+jobs:
+  # One job, so the check is always named "lint-test" (for branch rules and
+  # later jobs' needs:). Other linters join it as plain steps.
+  lint-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # This job never pushes, so don't leave the token in .git/config.
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          # Same patch version as ARG PYTHON_IMAGE (python:3.14.10-slim-trixie).
+          python-version: "3.14.10"
+          cache: pip
+          cache-dependency-path: "*/requirements-dev.txt"
+
+      # Adding the frontend: the "backend" install and pytest steps each get a
+      # frontend twin, and "frontend" joins both ruff commands.
+      - name: Install backend dev dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: ruff check
+        run: ruff check backend
+
+      - name: ruff format --check
+        run: ruff format --check backend
+
+      # One step per service: two app.py modules must never meet in one
+      # pytest session.
+      - name: pytest backend
+        working-directory: backend
+        run: pytest
