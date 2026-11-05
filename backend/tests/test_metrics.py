@@ -103,11 +103,17 @@ def test_each_open_meteo_call_is_timed_by_api_even_one_that_fails(client, open_m
 def test_cache_lookups_are_counted_as_hits_and_misses(client, open_meteo):
     open_meteo.get(GEOCODING_URL, json={"results": [BERLIN]})
     open_meteo.get(FORECAST_URL, json=CLEAR_SKY)
+    lookups = "cache_lookups_total"
 
     client.get("/api/weather?city=Berlin")  # both caches miss
+
+    assert metric(client, lookups, cache="city_lookup", result="miss") == 1
+    assert metric(client, lookups, cache="city_lookup", result="hit") is None
+    assert metric(client, lookups, cache="weather_report", result="miss") == 1
+    assert metric(client, lookups, cache="weather_report", result="hit") is None
+
     client.get("/api/weather?city=Berlin")  # both caches hit
 
-    lookups = "cache_lookups_total"
     assert metric(client, lookups, cache="city_lookup", result="miss") == 1
     assert metric(client, lookups, cache="city_lookup", result="hit") == 1
     assert metric(client, lookups, cache="weather_report", result="miss") == 1
