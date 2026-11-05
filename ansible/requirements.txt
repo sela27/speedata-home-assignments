@@ -1,0 +1,36 @@
+# Python packages for the Ansible container (see Dockerfile).
+# Direct dependencies:
+# ansible-core 2.21 supports Python 3.12-3.14 as a controller; kubernetes.core 6.6.0 is tested against it.
+ansible-core==2.21.6
+# The Python Kubernetes client, used by the kubernetes.core modules. 36.x is the line
+# kubernetes.core 6.6.0 was released against; 37.0 regenerated the client with breaking changes.
+kubernetes==36.0.3
+# What they pull in (resolved in a clean venv, Python 3.14.10):
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.5
+aiosignal==1.4.0
+attrs==26.1.0
+certifi==2026.10.23
+cffi==2.1.1
+charset-normalizer==3.5.2
+cryptography==50.0.2
+durationpy==0.11
+frozenlist==1.8.0
+idna==3.20
+jinja2==3.1.6
+markupsafe==3.0.4
+multidict==7.2.1
+oauthlib==4.0.1
+packaging==26.3
+propcache==0.5.4
+pycparser==3.12
+python-dateutil==4.0.0
+pyyaml==6.0.3
+requests==2.34.2
+requests-oauthlib==2.0.0
+resolvelib==1.2.1
+six==1.17.0
+tzdata==2026.6
+urllib3==2.8.0
+websocket-client==1.9.2
+yarl==1.25.1
