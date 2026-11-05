@@ -1,0 +1,56 @@
+# The K3s server: its config, the pinned K3s release, and a kubeconfig for the host.
+
+- name: Create the K3s config directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+# Written before the installer runs, so K3s uses it from its first start. A change
+# restarts K3s through the handler (on the first run too, just after the installer started it).
+- name: Write the K3s config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: "0600"
+  notify: Restart K3s
+
+- name: Read the installed K3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_server_installed
+  changed_when: false
+  failed_when: false   # fails when K3s is not installed yet; stdout is then empty
+
+- name: Install K3s {{ k3s_version }}
+  when: k3s_version not in k3s_server_installed.stdout
+  block:
+    # The official installer, taken from the same release tag as the binary it installs.
+    # force: a copy left by an earlier install may come from another tag.
+    - name: Download the K3s installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh
+        dest: /tmp/k3s-install.sh
+        mode: "0700"
+        force: true
+
+    # Installs the binary and the k3s systemd service, then (re)starts K3s.
+    - name: Run the K3s installer
+      ansible.builtin.command: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+      changed_when: true   # it only runs when K3s is missing or at another version
+
+- name: Read the kubeconfig K3s wrote
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_server_kubeconfig
+
+# K3s's own copy points at 127.0.0.1. The host reaches the API server on the Node network.
+# 2-cluster mounts the repo's .state/ (ignored by Git) at /state in the Ansible container.
+- name: Save the kubeconfig for the host to .state/kubeconfig
+  ansible.builtin.copy:
+    content: "{{ k3s_server_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://' ~ cp_address ~ ':6443') }}"
+    dest: /state/kubeconfig
+    mode: "0600"
+  delegate_to: localhost   # the Ansible container
+  become: false            # the container has no sudo, and needs none for /state
