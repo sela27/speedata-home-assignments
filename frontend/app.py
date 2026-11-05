@@ -13,6 +13,9 @@ FRIENDLY_MESSAGES = {
 # Longer than the backend's own two Open-Meteo calls at 5 seconds each, so a
 # slow Open-Meteo still reaches the visitor as the backend's 502.
 BACKEND_TIMEOUT_SECONDS = 15
+# The backend's /healthz waits on nothing, so 2 seconds is plenty: a backend
+# that hangs then delays the page's footer by 2 seconds, not another 15.
+BACKEND_VERSION_TIMEOUT_SECONDS = 2
 
 
 def create_app():
@@ -22,16 +25,15 @@ def create_app():
     # missing BACKEND_URL stops the app at startup instead of failing later.
     backend_url = os.environ["BACKEND_URL"]
 
-    def call_backend(path, params=None):
+    def call_backend(path, params=None, timeout=BACKEND_TIMEOUT_SECONDS):
         """GET one backend endpoint; raises requests.RequestException if it can't."""
-        return requests.get(
-            f"{backend_url}{path}", params=params, timeout=BACKEND_TIMEOUT_SECONDS
-        )
+        return requests.get(f"{backend_url}{path}", params=params, timeout=timeout)
 
     def backend_version():
         """The version the backend's /healthz reports, or "unknown"."""
         try:
-            return call_backend("/healthz").json()["version"]
+            answer = call_backend("/healthz", timeout=BACKEND_VERSION_TIMEOUT_SECONDS)
+            return answer.json()["version"]
         except requests.RequestException:
             return "unknown"
 

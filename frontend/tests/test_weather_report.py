@@ -27,7 +27,7 @@ def fake_backend_version(fake, version):
     fake.get(f"{BACKEND_URL}/healthz", json={"status": "ok", "version": version})
 
 
-def fake_weather(fake, city, *, status=200, json):
+def fake_weather_report(fake, city, *, status=200, json):
     fake.get(
         f"{BACKEND_URL}/api/weather",
         match=[matchers.query_param_matcher({"city": city})],
@@ -50,7 +50,7 @@ def test_first_visit_shows_the_city_form_and_asks_for_no_weather(client, backend
 
 def test_weather_report_renders_with_both_versions_in_the_footer(client, backend):
     fake_backend_version(backend, "8d1e4f0")
-    fake_weather(
+    fake_weather_report(
         backend,
         "Berlin",
         json={
@@ -77,7 +77,7 @@ def test_weather_report_for_a_place_without_a_country_names_only_the_city(
 ):
     # The backend sends an empty country when Open-Meteo has none.
     fake_backend_version(backend, "8d1e4f0")
-    fake_weather(
+    fake_weather_report(
         backend,
         "Nowhere",
         json={
@@ -108,7 +108,7 @@ def test_backend_error_renders_as_a_friendly_message(
     client, backend, city, status, message
 ):
     fake_backend_version(backend, "8d1e4f0")
-    fake_weather(backend, city, status=status, json={"error": message})
+    fake_weather_report(backend, city, status=status, json={"error": message})
 
     response = client.get(f"/?city={city}")
 
@@ -118,17 +118,17 @@ def test_backend_error_renders_as_a_friendly_message(
     assert "Backend 8d1e4f0" in page
 
 
-def test_backend_is_given_15_seconds_to_answer(client, backend):
-    # More than the backend's two Open-Meteo calls at 5 seconds each.
-    timeout = matchers.request_kwargs_matcher({"timeout": 15})
+def test_backend_is_given_15_seconds_for_weather_and_2_for_its_version(client, backend):
+    # 15 s is more than the backend's two Open-Meteo calls at 5 seconds each;
+    # its /healthz calls nothing, so a hung backend delays the footer only 2 s.
     backend.get(
         f"{BACKEND_URL}/healthz",
-        match=[timeout],
+        match=[matchers.request_kwargs_matcher({"timeout": 2})],
         json={"status": "ok", "version": "8d1e4f0"},
     )
     backend.get(
         f"{BACKEND_URL}/api/weather",
-        match=[timeout],
+        match=[matchers.request_kwargs_matcher({"timeout": 15})],
         status=404,
         json={"error": "City not found"},
     )
