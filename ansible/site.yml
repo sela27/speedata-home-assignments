@@ -1,0 +1,9 @@
+# Bring-up step 2: the cluster. scripts/2-cluster.ps1 runs this playbook in the
+# Ansible container: ansible-playbook -i inventory.yml site.yml
+
+- name: K3s server on the control plane
+  hosts: server
+  become: true
+  gather_facts: false   # the role uses no facts
+  roles:
+    - k3s_server
