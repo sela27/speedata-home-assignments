@@ -10,6 +10,9 @@ set -eu
 if [ -f /state/id_ed25519 ]; then
     install -D -m 600 /state/id_ed25519 "$HOME/.ssh/id_ed25519"
     export ANSIBLE_PRIVATE_KEY_FILE="$HOME/.ssh/id_ed25519"
+else
+    # Not fatal: commands that need no node, like ansible --version, still run.
+    echo "warning: no SSH key at /state/id_ed25519; mount .state/ at /state to reach the nodes" >&2
 fi
 
 exec "$@"
