@@ -1,5 +1,8 @@
+# One base image for both stages, so they cannot drift apart.
+ARG PYTHON_IMAGE=python:3.14.10-slim-trixie
+
 # Stage 1: build a virtualenv with the pinned dependencies.
-FROM python:3.14.10-slim-trixie AS builder
+FROM ${PYTHON_IMAGE} AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -9,7 +12,7 @@ COPY requirements.txt .
 RUN /venv/bin/pip install -r requirements.txt
 
 # Stage 2: the runtime gets only the virtualenv and the code.
-FROM python:3.14.10-slim-trixie
+FROM ${PYTHON_IMAGE}
 
 ENV PATH="/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
