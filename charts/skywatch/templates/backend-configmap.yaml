@@ -1,0 +1,13 @@
+# The backend's environment, from values.backend.config. Quoted, because
+# ConfigMap values must be strings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "skywatch.backend.name" . }}
+  labels:
+    {{- include "skywatch.labels" . | nindent 4 }}
+    {{- include "skywatch.backend.selectorLabels" . | nindent 4 }}
+data:
+  {{- range $name, $value := .Values.backend.config }}
+  {{ $name }}: {{ $value | quote }}
+  {{- end }}

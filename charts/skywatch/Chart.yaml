@@ -1,0 +1,5 @@
+apiVersion: v2
+name: skywatch
+description: SkyWatch's frontend and backend, with a Traefik Ingress for the frontend.
+type: application
+version: 0.1.0
