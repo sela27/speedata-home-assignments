@@ -16,8 +16,8 @@
   roles:
     - k3s_agent
 
-# Last, once the nodes are up: ArgoCD and the root Application. localhost is the
-# Ansible container itself, which reaches the cluster through the Kubernetes API.
+# Last, once the nodes are up: ArgoCD, the Grafana admin Secret and the root Application.
+# localhost is the Ansible container itself, which reaches the cluster through the Kubernetes API.
 - name: GitOps bootstrap from the Ansible container
   hosts: localhost
   gather_facts: false   # the role uses no facts
