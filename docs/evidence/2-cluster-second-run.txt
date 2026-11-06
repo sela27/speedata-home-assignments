@@ -1,4 +1,4 @@
-Second consecutive run of .\scripts\2-cluster.ps1 on the running cluster, 2026-11-06 20:37 (UTC+2), at commit 7a28bf7a542bcb529218eac699921692640f9a9f; exit code 0. Its output, as printed:
+Second consecutive run of .\scripts\2-cluster.ps1 on the running cluster, 2026-11-06 21:08 (UTC+2), at commit 92d4dac0496c542dc57351b0ca9db6902d9dd98c; exit code 0. Its output, as printed:
 
 Building the Ansible container image 'skywatch-ansible'...
 
@@ -28,12 +28,12 @@ ok: [skywatch-cp -> localhost]
 PLAY [K3s agents on the workers] ***********************************************
 
 TASK [k3s_agent : Create the K3s config directory] *****************************
-ok: [skywatch-worker2]
 ok: [skywatch-worker1]
+ok: [skywatch-worker2]
 
 TASK [k3s_agent : Write the K3s agent config] **********************************
-ok: [skywatch-worker2]
 ok: [skywatch-worker1]
+ok: [skywatch-worker2]
 
 TASK [k3s_agent : Read the installed K3s version] ******************************
 ok: [skywatch-worker1]
@@ -79,5 +79,5 @@ K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From 
   SkyWatch:     http://skywatch.192-168-60-11.sslip.io  (once ArgoCD has synced it)
   ArgoCD:       http://argocd.192-168-60-11.sslip.io  user admin, and the password from:
     kubectl --kubeconfig .state\kubeconfig -n argocd get secret argocd-initial-admin-secret -o go-template='{{.data.password | base64decode}}'
-  Grafana:      http://grafana.192-168-60-11.sslip.io  user admin, and the password from:
+  Grafana:      user admin, and the password from:
     kubectl --kubeconfig .state\kubeconfig -n monitoring get secret grafana-admin -o go-template='{{index .data `admin-password` | base64decode}}'
