@@ -6,6 +6,13 @@ metadata:
     {{- include "skywatch.labels" . | nindent 4 }}
     {{- include "skywatch.frontend.selectorLabels" . | nindent 4 }}
 spec:
+  replicas: 1
+  # With one pod, a rollout first starts the new pod and stops the old one
+  # only once the new one is Ready, so the frontend is never down.
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "skywatch.frontend.selectorLabels" . | nindent 6 }}
@@ -13,6 +20,10 @@ spec:
     metadata:
       labels:
         {{- include "skywatch.frontend.selectorLabels" . | nindent 8 }}
+      annotations:
+        # env from a ConfigMap is read only when a container starts, so a
+        # config change must change the pod template to roll the pods.
+        checksum/config: {{ include (print $.Template.BasePath "/frontend-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: frontend
@@ -29,3 +40,26 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "skywatch.frontend.name" . }}
+          # /healthz doesn't call the backend, so a backend outage can't fail
+          # the probes. Readiness reacts within seconds and only takes the pod
+          # out of the Service; liveness waits a minute before restarting it.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          # gunicorn writes only to /dev/shm, a tmpfs outside the root filesystem.
+          # The image's USER is numeric (10001), so the kubelet can check runAsNonRoot.
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
