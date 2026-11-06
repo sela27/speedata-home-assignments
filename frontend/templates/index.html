@@ -31,8 +31,10 @@
   <p class="message">{{ message }}</p>
   {% endif %}
 
+  {# Each version is a full commit SHA; Git's short form is its first 7
+     characters. "dev" and "unknown" are no longer, so they show whole. #}
   <footer>
-    Frontend {{ frontend_version }} · Backend {{ backend_version }}
+    Frontend {{ frontend_version[:7] }} · Backend {{ backend_version[:7] }}
   </footer>
 </body>
 </html>
