@@ -1,0 +1,56 @@
+# A K3s agent: its config, and the pinned K3s release, joined to the server with its token.
+
+- name: Create the K3s config directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+# Written before the installer runs, so the agent uses it from its first start. A change
+# restarts the agent through the handler (on the first run too, just after the installer started it).
+- name: Write the K3s agent config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: "0600"
+  notify: Restart the K3s agent
+
+- name: Read the installed K3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_agent_installed_version
+  changed_when: false
+  failed_when: false   # fails when K3s is not installed yet; stdout is then empty
+
+# Same guard as k3s_server: whole words, so v1.37.2+k3s1 does not match v1.37.2+k3s10.
+# A worker that runs the pinned release has joined already, so a re-run neither rejoins nor restarts it.
+- name: Install the K3s agent {{ k3s_version }}
+  when: k3s_version not in k3s_agent_installed_version.stdout.split()
+  block:
+    # The same installer as the server's: the pinned tag, checked against its pinned checksum.
+    - name: Download the K3s installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh
+        dest: /tmp/k3s-install.sh
+        mode: "0700"
+        checksum: sha256:{{ k3s_installer_sha256 }}
+
+    # The token is read from the server at runtime, so it is never in the repo or .state/.
+    # no_log keeps it out of Ansible's output.
+    - name: Read the join token from the server
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      delegate_to: "{{ groups['server'][0] }}"   # the control plane
+      register: k3s_agent_token
+      no_log: true
+
+    # Installs the binary and the k3s-agent systemd service, then starts the agent, which joins.
+    # The installer saves K3S_TOKEN in the service's env file (root only, mode 0600) on the worker,
+    # because the agent needs it on every start. no_log: the token is in this task's environment.
+    - name: Run the K3s installer
+      ansible.builtin.command: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        INSTALL_K3S_EXEC: agent   # the server address comes from the config file, not K3S_URL
+        K3S_TOKEN: "{{ k3s_agent_token.content | b64decode | trim }}"
+      changed_when: true   # it only runs when K3s is missing or at another version
+      no_log: true
