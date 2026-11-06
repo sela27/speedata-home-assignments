@@ -5,9 +5,10 @@
     Builds the Ansible container from ansible/ and runs the playbook
     ansible/site.yml in it. The playbook installs K3s on the control plane over
     the Node network, joins the two workers to it, and writes .state/kubeconfig,
-    which kubectl on this host uses. Then it installs ArgoCD and applies the
-    root Application, and ArgoCD deploys the apps from Git. Safe to re-run: the
-    playbook only changes what differs. Run 1-vms first. Does not need elevation.
+    which kubectl on this host uses. Then it installs ArgoCD, creates the Grafana
+    admin Secret once, and applies the root Application, and ArgoCD deploys the
+    apps from Git. Safe to re-run: the playbook only changes what differs, and
+    never rotates the Grafana password. Run 1-vms first. Does not need elevation.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -46,11 +47,15 @@ Invoke-Docker run --rm `
     --workdir /ansible `
     $image ansible-playbook -i inventory.yml site.yml
 
-# Where to look next. ArgoCD generated its admin password when it was installed.
+# Where to look next. ArgoCD generated its admin password when it was installed, and the
+# playbook generated Grafana's. Grafana's key has a hyphen, so the template must quote it:
+# backquotes, because Windows PowerShell 5.1 drops double quotes from a program's arguments.
 Write-Host @'
 K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From this host:
   the cluster:  kubectl --kubeconfig .state\kubeconfig get nodes
   SkyWatch:     http://skywatch.192-168-60-11.sslip.io  (once ArgoCD has synced it)
   ArgoCD:       http://argocd.192-168-60-11.sslip.io  user admin, and the password from:
     kubectl --kubeconfig .state\kubeconfig -n argocd get secret argocd-initial-admin-secret -o go-template='{{.data.password | base64decode}}'
+  Grafana:      user admin, and the password from:
+    kubectl --kubeconfig .state\kubeconfig -n monitoring get secret grafana-admin -o go-template='{{index .data `admin-password` | base64decode}}'
 '@

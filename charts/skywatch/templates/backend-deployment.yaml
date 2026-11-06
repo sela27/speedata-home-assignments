@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         {{- include "skywatch.backend.selectorLabels" . | nindent 8 }}
+      annotations:
+        # env from a ConfigMap is read only when a container starts, so a
+        # config change must change the pod template to roll the pods.
+        checksum/config: {{ include (print $.Template.BasePath "/backend-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: backend
@@ -22,6 +26,43 @@ spec:
             # The port gunicorn binds to in the image.
             - name: http
               containerPort: 8080
+          # The version is the image tag, the full commit SHA, so /healthz
+          # names the commit that is running.
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.backend.image.tag | quote }}
           envFrom:
             - configMapRef:
                 name: {{ include "skywatch.backend.name" . }}
+          # /healthz doesn't call Open-Meteo, so an upstream outage can't fail
+          # the probes. Readiness reacts within seconds and only takes the pod
+          # out of the Service; liveness waits a minute before restarting it.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 6
+          # The pod leaves the Service's endpoints when its deletion starts, but
+          # kube-proxy takes a moment to stop sending it the frontend's calls
+          # through the Service. The kubelet sends SIGTERM only after this hook
+          # ends, so the hook delays SIGTERM and gunicorn keeps serving for
+          # those 5 s.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          # gunicorn writes only to /dev/shm, a tmpfs outside the root filesystem.
+          # The image's USER is numeric (10001), so the kubelet can check runAsNonRoot.
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
