@@ -52,6 +52,7 @@ def test_first_visit_shows_the_city_form_and_asks_for_no_weather(client, backend
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
+    assert "Current weather for any city" in page
     assert '<form action="/" method="get">' in page
     assert 'name="city"' in page
     assert "Backend 8d1e4f0" in page
