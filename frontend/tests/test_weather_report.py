@@ -11,7 +11,8 @@ BACKEND_URL = "http://backend.test:8080"
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setenv("APP_VERSION", "5be7d10")
+    # The full commit SHA, as the chart injects it from the image tag.
+    monkeypatch.setenv("APP_VERSION", "5be7d10a3c9e4f8b2d6a1c0e7f3b9d5a2c4e6f81")
     monkeypatch.setenv("BACKEND_URL", BACKEND_URL)
     return create_app().test_client()
 
@@ -166,3 +167,25 @@ def test_backend_that_is_down_renders_as_unavailable(client, backend):
     assert "Weather service unavailable" in page
     assert "Frontend 5be7d10" in page
     assert "Backend unknown" in page
+
+
+def test_footer_shows_the_short_form_of_both_versions(client, backend):
+    # Both versions are full commit SHAs; the footer shows Git's short form.
+    fake_backend_version(backend, "8d1e4f0b6a2c9e3d7f1a5b8c0e4d2f6a9b3c7e15")
+
+    page = client.get("/").get_data(as_text=True)
+
+    assert "Frontend 5be7d10 · Backend 8d1e4f0" in page
+
+
+def test_footer_shows_dev_and_unknown_as_they_are(monkeypatch, backend):
+    # A local run has no APP_VERSION, and a backend that is down has no version.
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    monkeypatch.setenv("BACKEND_URL", BACKEND_URL)
+    refused = requests.exceptions.ConnectionError("Connection refused")
+    backend.get(f"{BACKEND_URL}/healthz", body=refused)
+    client = create_app().test_client()
+
+    page = client.get("/").get_data(as_text=True)
+
+    assert "Frontend dev · Backend unknown" in page

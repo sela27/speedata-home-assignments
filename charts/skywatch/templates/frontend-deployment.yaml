@@ -32,6 +32,11 @@ spec:
             # The port gunicorn binds to in the image.
             - name: http
               containerPort: 8080
+          # The version is the image tag, the full commit SHA, so /healthz
+          # and the footer name the commit that is running.
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.frontend.image.tag | quote }}
           envFrom:
             - configMapRef:
                 name: {{ include "skywatch.frontend.name" . }}
