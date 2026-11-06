@@ -1,0 +1,75 @@
+Second consecutive run of .\scripts\2-cluster.ps1 on the running cluster, 2026-11-06 11:23 (UTC+2), at commit c0ddf0246a05ca4c2850241a7d1804c58bc0c440; exit code 0. Its output, as printed:
+
+Building the Ansible container image 'skywatch-ansible'...
+
+PLAY [K3s server on the control plane] *****************************************
+
+TASK [k3s_server : Create the K3s config directory] ****************************
+ok: [skywatch-cp]
+
+TASK [k3s_server : Write the K3s config] ***************************************
+ok: [skywatch-cp]
+
+TASK [k3s_server : Read the installed K3s version] *****************************
+ok: [skywatch-cp]
+
+TASK [k3s_server : Download the K3s installer] *********************************
+skipping: [skywatch-cp]
+
+TASK [k3s_server : Run the K3s installer] **************************************
+skipping: [skywatch-cp]
+
+TASK [k3s_server : Read the kubeconfig K3s wrote] ******************************
+ok: [skywatch-cp]
+
+TASK [k3s_server : Save the kubeconfig for the host to .state/kubeconfig] ******
+ok: [skywatch-cp -> localhost]
+
+PLAY [K3s agents on the workers] ***********************************************
+
+TASK [k3s_agent : Create the K3s config directory] *****************************
+ok: [skywatch-worker2]
+ok: [skywatch-worker1]
+
+TASK [k3s_agent : Write the K3s agent config] **********************************
+ok: [skywatch-worker1]
+ok: [skywatch-worker2]
+
+TASK [k3s_agent : Read the installed K3s version] ******************************
+ok: [skywatch-worker1]
+ok: [skywatch-worker2]
+
+TASK [k3s_agent : Download the K3s installer] **********************************
+skipping: [skywatch-worker1]
+skipping: [skywatch-worker2]
+
+TASK [k3s_agent : Read the join token from the server] *************************
+skipping: [skywatch-worker1]
+skipping: [skywatch-worker2]
+
+TASK [k3s_agent : Run the K3s installer] ***************************************
+skipping: [skywatch-worker1]
+skipping: [skywatch-worker2]
+
+PLAY [GitOps bootstrap from the Ansible container] *****************************
+
+TASK [gitops_bootstrap : Install ArgoCD 10.14.0] *******************************
+[WARNING]: The default idempotency check can fail to report changes in certain cases. Install helm diff >= 3.4.1 for better results.
+[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.
+[DEPRECATION WARNING]: The 'status.values' return value is deprecated and will be removed in version 8.0.0. Use 'status.release_values' instead. This feature will be removed from collection 'kubernetes.core' version 8.0.0.
+ok: [localhost]
+
+TASK [gitops_bootstrap : Apply the root Application] ***************************
+ok: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+skywatch-cp                : ok=5    changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+skywatch-worker1           : ok=3    changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+skywatch-worker2           : ok=3    changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+
+K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From this host:
+  the cluster:  kubectl --kubeconfig .state\kubeconfig get nodes
+  SkyWatch:     http://skywatch.192-168-60-11.sslip.io  (once ArgoCD has synced it)
+  ArgoCD:       http://argocd.192-168-60-11.sslip.io  user admin, and the password from:
+    kubectl --kubeconfig .state\kubeconfig -n argocd get secret argocd-initial-admin-secret -o go-template='{{.data.password | base64decode}}'
