@@ -4,7 +4,9 @@ kind: Application
 metadata:
   name: monitoring   # also the Helm release name
   namespace: argocd
-  # Deleting the Application deletes the resources the chart renders, CRDs included.
+  # Deleting the Application deletes the resources the chart renders, except its CRDs:
+  # ArgoCD puts no tracking annotation on CRDs, so it doesn't count them as the app's.
+  # They, and the TLS Secret the admission hook Job writes, are deleted by hand.
   # The monitoring namespace and the grafana-admin Secret stay: Ansible created them,
   # and ArgoCD doesn't track them.
   finalizers:
