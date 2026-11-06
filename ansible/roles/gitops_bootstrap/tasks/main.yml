@@ -5,8 +5,9 @@
 # before ArgoCD deploys the monitoring app.
 
 # ArgoCD does not manage itself: its version and settings change by re-running 2-cluster.
-# Without the helm-diff plugin the module warns that it compares only the chart version
-# and the values below; those are all this task sets.
+# Two warnings on every run come from the module itself: without the helm-diff plugin it
+# compares only the chart version and the values below (all this task sets), and
+# kubernetes.core 6.6.0 always flags its own deprecated status.values.
 - name: Install ArgoCD {{ argocd_chart_version }}
   kubernetes.core.helm:
     release_name: argocd
