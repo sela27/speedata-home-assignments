@@ -1,0 +1,32 @@
+# The monitoring app: the wrapper chart around kube-prometheus-stack, at main.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring   # also the Helm release name
+  namespace: argocd
+  # Deleting the Application deletes the resources the chart renders, CRDs included.
+  # The monitoring namespace and the grafana-admin Secret stay: Ansible created them,
+  # and ArgoCD doesn't track them.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sela27/speedata-home-assignments.git
+    targetRevision: main
+    path: charts/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  # skywatch's sync policy, plus server-side apply.
+  syncPolicy:
+    automated:
+      prune: true      # a resource removed from the chart is deleted from the cluster
+      selfHeal: true   # a resource changed or deleted by hand is put back
+    syncOptions:
+      - CreateNamespace=true
+      # The stack's biggest CRDs are larger than the 262144-byte annotation in which a
+      # client-side apply keeps the last applied object, so that apply fails.
+      - ServerSideApply=true
+    retry:
+      limit: 5   # with ArgoCD's default backoff: 5 s, doubling, at most 3 min
