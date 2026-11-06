@@ -67,13 +67,23 @@ jobs:
           sudo tar -xzf /tmp/helm.tar.gz -C /usr/local/bin --strip-components=1 linux-amd64/helm
           helm version
 
+      # The monitoring chart's kube-prometheus-stack, at the version in its
+      # Chart.lock, from the OCI registry. ArgoCD's repo-server does the same.
+      - name: helm dependency build
+        run: helm dependency build charts/monitoring
+
       - name: helm lint
-        run: helm lint --strict charts/skywatch
+        run: |
+          helm lint --strict charts/skywatch
+          helm lint --strict charts/monitoring
 
       # Renders every template with the real values: the manifests ArgoCD
-      # will apply, printed in the job log.
+      # will apply, printed in the job log. Like ArgoCD, monitoring is
+      # rendered in its namespace and with its CRDs.
       - name: helm template
-        run: helm template skywatch charts/skywatch
+        run: |
+          helm template skywatch charts/skywatch
+          helm template monitoring charts/monitoring --namespace monitoring --include-crds
 
       # The container's ansible-core and collection (ansible/requirements.txt,
       # ansible/requirements.yml), so the lint resolves kubernetes.core modules

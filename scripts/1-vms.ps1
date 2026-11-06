@@ -16,8 +16,10 @@ $ErrorActionPreference = 'Stop'
 $switchName = 'skywatch'   # the Node network switch 0-network creates
 $image      = '24.04'
 # The VMs this script owns. down.ps1 removes exactly these names.
+# The control plane has 4G because with 2G it ran out of memory applying the monitoring
+# stack's CRDs. A re-run leaves an existing VM's size alone.
 $nodes = @(
-    [pscustomobject]@{ Name = 'skywatch-cp';      Address = '192.168.60.10'; Cpus = 2; Memory = '2G'; Disk = '15G' }
+    [pscustomobject]@{ Name = 'skywatch-cp';      Address = '192.168.60.10'; Cpus = 2; Memory = '4G'; Disk = '15G' }
     [pscustomobject]@{ Name = 'skywatch-worker1'; Address = '192.168.60.11'; Cpus = 2; Memory = '4G'; Disk = '20G' }
     [pscustomobject]@{ Name = 'skywatch-worker2'; Address = '192.168.60.12'; Cpus = 2; Memory = '4G'; Disk = '20G' }
 )

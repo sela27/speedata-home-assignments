@@ -1,0 +1,12 @@
+apiVersion: v2
+name: monitoring
+description: Prometheus and Grafana (kube-prometheus-stack).
+type: application
+version: 0.1.0
+dependencies:
+  # The latest release on 2026-11-06 (Prometheus Operator v0.94.2, Grafana 13.3.0).
+  # From the OCI registry, which the chart's README installs from: ArgoCD's repo-server and
+  # CI pull it with `helm dependency build` (Chart.lock), with no `helm repo add`.
+  - name: kube-prometheus-stack
+    version: 92.21.2
+    repository: oci://ghcr.io/prometheus-community/charts

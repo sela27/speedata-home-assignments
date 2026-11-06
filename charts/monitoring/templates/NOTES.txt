@@ -1,0 +1,4 @@
+{{- /*
+Prints nothing. It keeps templates/ in Git, which `helm lint --strict` requires.
+SkyWatch's dashboard and alert rules will go in templates/ too.
+*/ -}}
