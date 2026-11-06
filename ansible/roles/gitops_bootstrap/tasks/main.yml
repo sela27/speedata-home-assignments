@@ -8,7 +8,7 @@
 # Two warnings on every run come from the module itself: without the helm-diff plugin it
 # compares only the chart version and the values below (all this task sets), and
 # kubernetes.core 6.6.0 always flags its own deprecated status.values.
-- name: Install ArgoCD {{ argocd_chart_version }}
+- name: Install the ArgoCD chart {{ argocd_chart_version }}
   kubernetes.core.helm:
     release_name: argocd
     chart_ref: argo-cd
@@ -31,15 +31,19 @@
           # Plain HTTP behind Traefik; this project has no TLS.
           server.insecure: true
         cm:
-          # How often ArgoCD checks Git for new commits (plus the chart's default
-          # jitter of up to 60 s, which spreads the checks out).
+          # How often ArgoCD checks Git for new commits.
           timeout.reconciliation: 60s
+          # The chart's default (and ArgoCD's) adds up to 60 s at random to each
+          # check, to spread the load of many apps. 0 keeps the checks 60 s apart.
+          timeout.reconciliation.jitter: 0s
       server:
         ingress:
           enabled: true
           ingressClassName: traefik
 
-# Applied once. It points ArgoCD at apps/ in Git, where the child Applications are.
+# Applied on every run: with no change it reports ok, and a hand edit to a field
+# root-app.yaml sets is put back. It points ArgoCD at apps/ in Git, where the
+# child Applications are.
 - name: Apply the root Application
   kubernetes.core.k8s:
     src: root-app.yaml   # files/root-app.yaml

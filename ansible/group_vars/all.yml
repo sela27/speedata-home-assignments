@@ -5,7 +5,7 @@ k3s_version: v1.37.2+k3s1
 k3s_installer_sha256: ed01f89fd977bf20ac1516bbebf8370bf3ddbaa55dac8aba610956a4c78cc00b
 
 # The ArgoCD Helm chart (argoproj/argo-helm), the latest on 2026-11-06. It installs
-# Argo CD v3.6.1, which is tested on Kubernetes 1.34 to 1.37, the K3s release above included.
+# ArgoCD v3.6.1, which is tested on Kubernetes 1.34 to 1.37, the K3s release above included.
 argocd_chart_version: 10.14.0
 
 # Node network addresses, the ones scripts/1-vms.ps1 gives the VMs.

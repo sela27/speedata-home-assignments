@@ -5,6 +5,11 @@ kind: Application
 metadata:
   name: skywatch   # also the Helm release name, as in CI's helm template
   namespace: argocd
+  # Deleting the Application deletes its resources too. Without it, removing this
+  # file (the root app then prunes the Application) would orphan its Deployments
+  # and Services.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:

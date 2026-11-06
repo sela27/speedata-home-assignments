@@ -1,5 +1,6 @@
-# The root Application (app of apps). Ansible applies it once. It deploys every
-# Application in apps/ on main, so a new child app is added in Git, not here.
+# The root Application (app of apps). Ansible applies it on every run: with no
+# change it reports ok, and a hand edit to a field below is put back. It deploys
+# every Application in apps/ on main, so a new child app is added in Git, not here.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
