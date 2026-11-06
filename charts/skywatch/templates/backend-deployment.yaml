@@ -6,7 +6,8 @@ metadata:
     {{- include "skywatch.labels" . | nindent 4 }}
     {{- include "skywatch.backend.selectorLabels" . | nindent 4 }}
 spec:
-  replicas: 2
+  # No replicas field: the HPA (backend-hpa.yaml) owns the count. With one here,
+  # ArgoCD would see each change the HPA makes as drift and self-heal would undo it.
   selector:
     matchLabels:
       {{- include "skywatch.backend.selectorLabels" . | nindent 6 }}

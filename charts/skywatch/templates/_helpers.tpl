@@ -1,6 +1,6 @@
 {{/*
 Names and labels shared by the templates. All of a component's resources
-(ConfigMap, Deployment, Service, Ingress) share one name, skywatch-<component>.
+(ConfigMap, Deployment, Service, Ingress, HPA) share one name, skywatch-<component>.
 */}}
 
 {{/* Labels on every resource. */}}

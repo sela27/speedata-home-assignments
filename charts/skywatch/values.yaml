@@ -43,6 +43,12 @@ backend:
     limits:
       cpu: 500m
       memory: 128Mi
+  # The HPA (templates/backend-hpa.yaml). The target is a percentage of the CPU
+  # request above.
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
 ingress:
   # sslip.io resolves this name to 192.168.60.11, worker 1's Node network address.
   host: skywatch.192-168-60-11.sslip.io
