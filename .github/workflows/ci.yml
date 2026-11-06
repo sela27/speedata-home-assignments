@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+# One run at a time per ref, so two Tag bumps never race. A running run may be
+# mid-push, so it is never cancelled. A newer push replaces a pending run; no
+# rollout is lost, because the newer commit contains the older one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # One job, so the check is always named "lint-test" (for branch rules and
   # later jobs' needs:). Other linters join it as plain steps.
@@ -111,3 +118,54 @@ jobs:
           # other's. mode=max also keeps the builder stage (pip install).
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  # The Tag bump: once both images are in GHCR, point the app chart at them,
+  # so Git always describes what should run. Main only.
+  bump-tags:
+    needs: build-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    # The only job that may push to the repository.
+    permissions:
+      contents: write
+    steps:
+      # The tip of main, not github.sha: main may already have the previous
+      # run's Tag bump, which this one must replace, not conflict with at the
+      # rebase. persist-credentials stays on: the push below uses GITHUB_TOKEN.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      # Pinned and checked like helm above. The runner's own yq (/usr/bin/yq)
+      # is unpinned; /usr/local/bin comes first in PATH, so this one is used.
+      - name: Install yq
+        run: |
+          curl -fsSLo /tmp/yq https://github.com/mikefarah/yq/releases/download/v4.54.2/yq_linux_amd64
+          echo "44c7759059b4910827a0059a2757b22001e59360cdecdb2ef8dedc4b6c7e9f32  /tmp/yq" | sha256sum --check
+          sudo install /tmp/yq /usr/local/bin/yq
+          yq --version
+
+      # Double quotes keep the tag a string even when the SHA looks like a
+      # number (all digits, or digits around one "e"). Unquoted, Helm would
+      # render such a tag as a float, e.g. 1.234567890123457e+158.
+      - name: Set both image tags to the commit SHA
+        run: |
+          yq -i '(.frontend.image.tag, .backend.image.tag) = (strenv(GITHUB_SHA) | . style="double")' \
+            charts/skywatch/values.yaml
+          git diff
+
+      # A push made with GITHUB_TOKEN never starts a workflow run: that is the
+      # loop guard, and [skip ci] is a second one. The rebase takes in any
+      # commit pushed to main since the checkout.
+      - name: Commit and push the Tag bump
+        run: |
+          # Re-running the latest run changes nothing, and git commit would fail.
+          if git diff --quiet; then
+            echo "Both tags already equal ${GITHUB_SHA}: no Tag bump needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Tag bump to ${GITHUB_SHA} [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main

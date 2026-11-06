@@ -9,6 +9,10 @@ cp_address: 192.168.60.10
 worker1_address: 192.168.60.11
 worker2_address: 192.168.60.12
 
+# The K3s API server, on the control plane's Node network address: the agents
+# join it, and the host's kubeconfig points at it.
+k3s_api_server_url: https://{{ cp_address }}:6443
+
 # The default user of Ubuntu cloud images. 1-vms injects the SSH key for it.
 ansible_user: ubuntu
 # Ubuntu 24.04's Python. Naming it stops Ansible's interpreter discovery warning.
