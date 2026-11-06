@@ -1,5 +1,5 @@
-# Bring-up step 2: the cluster. scripts/2-cluster.ps1 runs this playbook in the
-# Ansible container: ansible-playbook -i inventory.yml site.yml
+# Bring-up step 2: the cluster, then ArgoCD on it. scripts/2-cluster.ps1 runs this
+# playbook in the Ansible container: ansible-playbook -i inventory.yml site.yml
 
 - name: K3s server on the control plane
   hosts: server

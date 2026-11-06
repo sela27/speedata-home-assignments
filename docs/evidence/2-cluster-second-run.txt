@@ -1,4 +1,4 @@
-Second consecutive run of .\scripts\2-cluster.ps1 on the running cluster, 2026-11-06 11:23 (UTC+2), at commit c0ddf0246a05ca4c2850241a7d1804c58bc0c440; exit code 0. Its output, as printed:
+Second consecutive run of .\scripts\2-cluster.ps1 on the running cluster, 2026-11-06 11:48 (UTC+2), at commit a5bd49c8cba8e62610d92ca5f57e8db6bf2ce92a; exit code 0. Its output, as printed:
 
 Building the Ansible container image 'skywatch-ansible'...
 
@@ -32,8 +32,8 @@ ok: [skywatch-worker2]
 ok: [skywatch-worker1]
 
 TASK [k3s_agent : Write the K3s agent config] **********************************
-ok: [skywatch-worker1]
 ok: [skywatch-worker2]
+ok: [skywatch-worker1]
 
 TASK [k3s_agent : Read the installed K3s version] ******************************
 ok: [skywatch-worker1]
@@ -53,7 +53,7 @@ skipping: [skywatch-worker2]
 
 PLAY [GitOps bootstrap from the Ansible container] *****************************
 
-TASK [gitops_bootstrap : Install ArgoCD 10.14.0] *******************************
+TASK [gitops_bootstrap : Install the ArgoCD chart 10.14.0] *********************
 [WARNING]: The default idempotency check can fail to report changes in certain cases. Install helm diff >= 3.4.1 for better results.
 [WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.
 [DEPRECATION WARNING]: The 'status.values' return value is deprecated and will be removed in version 8.0.0. Use 'status.release_values' instead. This feature will be removed from collection 'kubernetes.core' version 8.0.0.
