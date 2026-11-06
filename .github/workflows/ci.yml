@@ -78,11 +78,12 @@ jobs:
           helm lint --strict charts/monitoring
 
       # Renders every template with the real values: the manifests ArgoCD
-      # will apply, printed in the job log.
+      # will apply, printed in the job log. Like ArgoCD, monitoring is
+      # rendered in its namespace and with its CRDs.
       - name: helm template
         run: |
           helm template skywatch charts/skywatch
-          helm template monitoring charts/monitoring
+          helm template monitoring charts/monitoring --namespace monitoring --include-crds
 
       # The container's ansible-core and collection (ansible/requirements.txt,
       # ansible/requirements.yml), so the lint resolves kubernetes.core modules

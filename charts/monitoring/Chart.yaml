@@ -1,6 +1,6 @@
 apiVersion: v2
 name: monitoring
-description: Prometheus and Grafana (kube-prometheus-stack), with SkyWatch's dashboard and alert rules.
+description: Prometheus and Grafana (kube-prometheus-stack).
 type: application
 version: 0.1.0
 dependencies:
