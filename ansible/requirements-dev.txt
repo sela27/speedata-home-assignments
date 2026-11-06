@@ -1,0 +1,24 @@
+# Python packages for linting the Ansible code in CI (the lint-test job).
+# requirements.txt comes first, so the lint uses the container's ansible-core.
+-r requirements.txt
+# Direct dependencies:
+ansible-lint==26.11.0
+# What it pulls in (resolved in a clean venv, Python 3.14.10):
+ansible-compat==26.11.0
+black==26.10.1
+bracex==3.2.1
+click==8.5.0
+distro==1.9.0
+filelock==4.2.9
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+mypy-extensions==1.2.0
+pathspec==1.1.1
+platformdirs==4.14.5
+pytokens==0.4.1
+referencing==0.37.0
+rpds-py==2026.9.1
+ruamel-yaml==0.19.1
+subprocess-tee==0.4.2
+wcmatch==12.0
+yamllint==1.38.0
