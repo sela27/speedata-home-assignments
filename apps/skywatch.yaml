@@ -1,0 +1,24 @@
+# The skywatch app: the app chart in this repo, at main. The Tag bump commits new
+# image tags to main, and ArgoCD rolls them out: the Key flow.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: skywatch   # also the Helm release name, as in CI's helm template
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sela27/speedata-home-assignments.git
+    targetRevision: main
+    path: charts/skywatch
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: skywatch
+  syncPolicy:
+    automated:
+      prune: true      # a resource removed from the chart is deleted from the cluster
+      selfHeal: true   # a resource changed or deleted by hand is put back
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5   # with ArgoCD's default backoff: 5 s, doubling, at most 3 min
