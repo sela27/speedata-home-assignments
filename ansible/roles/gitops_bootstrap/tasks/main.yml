@@ -49,7 +49,7 @@
     name: grafana-admin
     namespace: monitoring
     kubeconfig: /state/kubeconfig
-  register: gitops_bootstrap_grafana_admin
+  register: gitops_bootstrap_grafana_admin_secret
   no_log: true
 
 # Only when it is absent, so a re-run never rotates the password Grafana already uses.
@@ -72,7 +72,7 @@
           admin-user: admin
           # /dev/null: a new random password each time, not saved anywhere on the controller.
           admin-password: "{{ lookup('ansible.builtin.password', '/dev/null', length=24, chars=['ascii_letters', 'digits']) }}"
-  when: gitops_bootstrap_grafana_admin.resources | length == 0
+  when: gitops_bootstrap_grafana_admin_secret.resources | length == 0
   no_log: true
 
 # Applied on every run: with no change it reports ok, and a hand edit to a field

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 import requests
 import responses
@@ -26,6 +28,12 @@ def backend():
 
 def fake_backend_version(fake, version):
     fake.get(f"{BACKEND_URL}/healthz", json={"status": "ok", "version": version})
+
+
+def fake_backend_down(fake):
+    # Every call to the backend, whatever its path, is refused.
+    refused = requests.exceptions.ConnectionError("Connection refused")
+    fake.get(re.compile(f"{re.escape(BACKEND_URL)}/"), body=refused)
 
 
 def fake_weather_report(fake, city, *, status=200, json):
@@ -156,9 +164,7 @@ def test_unexpected_backend_answer_renders_as_unavailable(client, backend):
 
 
 def test_backend_that_is_down_renders_as_unavailable(client, backend):
-    refused = requests.exceptions.ConnectionError("Connection refused")
-    backend.get(f"{BACKEND_URL}/healthz", body=refused)
-    backend.get(f"{BACKEND_URL}/api/weather", body=refused)
+    fake_backend_down(backend)
 
     response = client.get("/?city=Berlin")
 
@@ -182,8 +188,7 @@ def test_footer_shows_dev_and_unknown_as_they_are(monkeypatch, backend):
     # A local run has no APP_VERSION, and a backend that is down has no version.
     monkeypatch.delenv("APP_VERSION", raising=False)
     monkeypatch.setenv("BACKEND_URL", BACKEND_URL)
-    refused = requests.exceptions.ConnectionError("Connection refused")
-    backend.get(f"{BACKEND_URL}/healthz", body=refused)
+    fake_backend_down(backend)
     client = create_app().test_client()
 
     page = client.get("/").get_data(as_text=True)
