@@ -7,3 +7,11 @@
   gather_facts: false   # the role uses no facts
   roles:
     - k3s_server
+
+# After the server: the agents read its join token and connect to it.
+- name: K3s agents on the workers
+  hosts: agents
+  become: true
+  gather_facts: false   # the role uses no facts
+  roles:
+    - k3s_agent
