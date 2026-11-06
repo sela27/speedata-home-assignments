@@ -1,0 +1,27 @@
+# The root Application (app of apps). Ansible applies it once. It deploys every
+# Application in apps/ on main, so a new child app is added in Git, not here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # Public, so ArgoCD needs no repo credentials.
+    repoURL: https://github.com/sela27/speedata-home-assignments.git
+    targetRevision: main
+    path: apps
+  # The child Application resources themselves live in argocd.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # The same sync policy as every child app.
+  syncPolicy:
+    automated:
+      prune: true      # an Application removed from apps/ is removed from ArgoCD
+      selfHeal: true   # a change made by hand to a child Application is reverted
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5   # with ArgoCD's default backoff: 5 s, doubling, at most 3 min

@@ -1,0 +1,46 @@
+# The GitOps bootstrap: ArgoCD, then the root Application. From then on ArgoCD deploys
+# everything else from Git. Both tasks run in the Ansible container and talk to the
+# Kubernetes API with the kubeconfig k3s_server saved; nothing runs on the nodes.
+# The Grafana admin Secret (ADR-0002) belongs between the two, so that it exists
+# before ArgoCD deploys the monitoring app.
+
+# ArgoCD does not manage itself: its version and settings change by re-running 2-cluster.
+# Two warnings on every run come from the module itself: without the helm-diff plugin it
+# compares only the chart version and the values below (all this task sets), and
+# kubernetes.core 6.6.0 always flags its own deprecated status.values.
+- name: Install ArgoCD {{ argocd_chart_version }}
+  kubernetes.core.helm:
+    release_name: argocd
+    chart_ref: argo-cd
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: argocd
+    create_namespace: true
+    kubeconfig: /state/kubeconfig
+    # Returns once ArgoCD runs, so it picks up the root Application straight away.
+    wait: true
+    # Helm's default is 5 min per step. On the first Bring-up each worker pulls the
+    # 229 MB argocd image, which took about 2 min per worker on the owner's connection.
+    timeout: 10m
+    release_values:
+      global:
+        # The chart takes the Ingress host from this. sslip.io resolves it to worker 1.
+        domain: argocd.192-168-60-11.sslip.io
+      configs:
+        params:
+          # Plain HTTP behind Traefik; this project has no TLS.
+          server.insecure: true
+        cm:
+          # How often ArgoCD checks Git for new commits (plus the chart's default
+          # jitter of up to 60 s, which spreads the checks out).
+          timeout.reconciliation: 60s
+      server:
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+
+# Applied once. It points ArgoCD at apps/ in Git, where the child Applications are.
+- name: Apply the root Application
+  kubernetes.core.k8s:
+    src: root-app.yaml   # files/root-app.yaml
+    kubeconfig: /state/kubeconfig
