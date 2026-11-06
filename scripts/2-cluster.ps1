@@ -56,6 +56,6 @@ K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From 
   SkyWatch:     http://skywatch.192-168-60-11.sslip.io  (once ArgoCD has synced it)
   ArgoCD:       http://argocd.192-168-60-11.sslip.io  user admin, and the password from:
     kubectl --kubeconfig .state\kubeconfig -n argocd get secret argocd-initial-admin-secret -o go-template='{{.data.password | base64decode}}'
-  Grafana:      http://grafana.192-168-60-11.sslip.io  user admin, and the password from:
+  Grafana:      user admin, and the password from:
     kubectl --kubeconfig .state\kubeconfig -n monitoring get secret grafana-admin -o go-template='{{index .data `admin-password` | base64decode}}'
 '@

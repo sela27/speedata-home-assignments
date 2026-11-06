@@ -47,9 +47,11 @@ spec:
               path: /healthz
               port: http
             failureThreshold: 6
-          # A stopping pod leaves the Service's endpoints as it gets SIGTERM, but
-          # kube-proxy and Traefik take a moment to stop sending it requests.
-          # Serving 5 s longer means none of them reaches a closed port.
+          # The pod leaves the Service's endpoints when its deletion starts, but
+          # kube-proxy takes a moment to stop sending it the frontend's calls
+          # through the Service. The kubelet sends SIGTERM only after this hook
+          # ends, so the hook delays SIGTERM and gunicorn keeps serving for
+          # those 5 s.
           lifecycle:
             preStop:
               sleep:
