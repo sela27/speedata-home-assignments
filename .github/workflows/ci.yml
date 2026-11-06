@@ -162,6 +162,11 @@ jobs:
       # commit pushed to main since the checkout.
       - name: Commit and push the Tag bump
         run: |
+          # Re-running the latest run changes nothing, and git commit would fail.
+          if git diff --quiet; then
+            echo "Both tags already equal ${GITHUB_SHA}: no Tag bump needed."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "Tag bump to ${GITHUB_SHA} [skip ci]"
