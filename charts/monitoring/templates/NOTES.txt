@@ -1,6 +1,4 @@
 {{- /*
-Helm prints this after a `helm install`; ArgoCD does not show it. It also keeps templates/
-in Git, which `helm lint --strict` requires. SkyWatch's dashboard and alert rules go here too.
+Prints nothing. It keeps templates/ in Git, which `helm lint --strict` requires.
+SkyWatch's dashboard and alert rules will go in templates/ too.
 */ -}}
-Grafana: http://grafana.192-168-60-11.sslip.io, user admin. The password is in the Secret
-grafana-admin in namespace {{ .Release.Namespace }}; scripts/2-cluster.ps1 prints the command that reads it.

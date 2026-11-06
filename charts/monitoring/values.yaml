@@ -5,6 +5,10 @@ kube-prometheus-stack:
   # shows them, and Grafana shows them too.
   alertmanager:
     enabled: false
+  # With no Alertmanager to connect to, this default rule would always fire.
+  defaultRules:
+    disabled:
+      PrometheusNotConnectedToAlertmanagers: true
 
   # K3s runs the scheduler, the controller-manager and kube-proxy inside its own process,
   # with their metrics on 127.0.0.1 only, and this cluster has no etcd (its datastore is
@@ -25,7 +29,8 @@ kube-prometheus-stack:
       # No storageSpec: the operator gives Prometheus an emptyDir, so the data lasts
       # as long as the pod.
       # By default Prometheus selects only ServiceMonitors labelled with this Helm
-      # release. false selects them all, so the app chart's needs no such label.
+      # release. false selects them all, so the app chart's ServiceMonitor needs no
+      # such label.
       serviceMonitorSelectorNilUsesHelmValues: false
 
   grafana:
