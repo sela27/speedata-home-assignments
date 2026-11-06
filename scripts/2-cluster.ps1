@@ -4,9 +4,9 @@
 .DESCRIPTION
     Builds the Ansible container from ansible/ and runs the playbook
     ansible/site.yml in it. The playbook installs K3s on the control plane over
-    the Node network and writes .state/kubeconfig, which kubectl on this host
-    uses. Safe to re-run: the playbook only changes what differs. Run 1-vms
-    first. Does not need elevation.
+    the Node network, joins the two workers to it, and writes .state/kubeconfig,
+    which kubectl on this host uses. Safe to re-run: the playbook only changes
+    what differs. Run 1-vms first. Does not need elevation.
 #>
 
 $ErrorActionPreference = 'Stop'
