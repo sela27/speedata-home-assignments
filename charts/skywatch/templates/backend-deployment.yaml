@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "skywatch.backend.name" . }}
+  labels:
+    {{- include "skywatch.labels" . | nindent 4 }}
+    {{- include "skywatch.backend.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      {{- include "skywatch.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "skywatch.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          ports:
+            # The port gunicorn binds to in the image.
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ include "skywatch.backend.name" . }}

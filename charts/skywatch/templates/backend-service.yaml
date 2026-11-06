@@ -1,0 +1,16 @@
+# Internal: reachable only from inside the cluster, where the frontend calls it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "skywatch.backend.name" . }}
+  labels:
+    {{- include "skywatch.labels" . | nindent 4 }}
+    {{- include "skywatch.backend.selectorLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "skywatch.backend.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

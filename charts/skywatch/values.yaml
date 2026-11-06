@@ -1,0 +1,26 @@
+# The only values file: there are no per-environment overlays.
+# Each component's config is rendered into its ConfigMap and reaches the
+# container as env, so the images carry no configuration.
+
+frontend:
+  image:
+    repository: ghcr.io/sela27/skywatch-frontend
+    # The Tag bump in CI sets this to the full commit SHA.
+    tag: "set-by-tag-bump"
+  config:
+    # The backend's internal Service (templates/backend-service.yaml).
+    BACKEND_URL: http://skywatch-backend
+
+backend:
+  image:
+    repository: ghcr.io/sela27/skywatch-backend
+    # The Tag bump in CI sets this to the full commit SHA.
+    tag: "set-by-tag-bump"
+  config:
+    GEOCODING_URL: https://geocoding-api.open-meteo.com/v1/search
+    FORECAST_URL: https://api.open-meteo.com/v1/forecast
+    HTTP_TIMEOUT_SECONDS: "5"
+
+ingress:
+  # sslip.io resolves this name to 192.168.60.11, worker 1's Node network address.
+  host: skywatch.192-168-60-11.sslip.io

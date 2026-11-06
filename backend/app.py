@@ -3,7 +3,14 @@ import threading
 import time
 
 import requests
-from flask import Flask, request
+from flask import Flask, g, request
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+)
 
 # Conditions for each WMO weather code, exactly as in the "WMO Weather
 # interpretation codes (WW)" table at https://open-meteo.com/en/docs.
@@ -87,19 +94,62 @@ def create_app():
     city_lookups = TTLCache(ttl_seconds=24 * 60 * 60)
     weather_reports = TTLCache(ttl_seconds=10 * 60)
 
-    def call_open_meteo(url, params):
+    # Metrics go in this app's own registry, not prometheus-client's global
+    # one, so every create_app() (one per test) starts from zero instead of
+    # failing on metrics the last one already registered. gunicorn runs one
+    # worker, so this one registry sees every request the pod answers.
+    registry = CollectorRegistry()
+    # RED: rate and errors from the counter, duration from the histogram.
+    http_requests = Counter(
+        "http_requests_total",
+        "HTTP requests answered, by route and status",
+        ["service", "endpoint", "status"],
+        registry=registry,
+    )
+    http_request_duration = Histogram(
+        "http_request_duration_seconds",
+        "Time to answer an HTTP request, by route",
+        ["service", "endpoint"],
+        registry=registry,
+    )
+    # Tells our own slowness from Open-Meteo's.
+    openmeteo_request_duration = Histogram(
+        "openmeteo_request_duration_seconds",
+        "Time Open-Meteo took to answer, by API",
+        ["api"],
+        registry=registry,
+    )
+    # Shows how much traffic the caches keep away from Open-Meteo.
+    cache_lookups = Counter(
+        "cache_lookups_total",
+        "Cache lookups, by cache and whether the entry was there",
+        ["cache", "result"],
+        registry=registry,
+    )
+
+    def call_open_meteo(api, url, params):
         """GET one Open-Meteo API; raises requests.RequestException on any failure."""
-        response = requests.get(url, params=params, timeout=timeout)
+        # Timed even when it fails: a timeout is Open-Meteo at its slowest.
+        with openmeteo_request_duration.labels(api=api).time():
+            response = requests.get(url, params=params, timeout=timeout)
         response.raise_for_status()
         return response.json()
+
+    def cache_get(cache, name, key):
+        """cache.get(key), counted in cache_lookups as a hit or a miss of cache=name."""
+        value = cache.get(key)
+        result = "miss" if value is None else "hit"
+        cache_lookups.labels(cache=name, result=result).inc()
+        return value
 
     def city_lookup(name):
         """The most populous place with this name, or None if there is none."""
         key = name.casefold()  # "Berlin" and "BERLIN" are the same city
-        place = city_lookups.get(key)
+        place = cache_get(city_lookups, "city_lookup", key)
         if place is not None:
             return place
         lookup_result = call_open_meteo(
+            "geocoding",
             geocoding_url,
             {"name": name, "count": 1, "language": "en", "format": "json"},
         )
@@ -112,10 +162,11 @@ def create_app():
 
     def weather_report(place):
         coordinates = (place["latitude"], place["longitude"])
-        report = weather_reports.get(coordinates)
+        report = cache_get(weather_reports, "weather_report", coordinates)
         if report is not None:
             return report
         current_weather = call_open_meteo(
+            "forecast",
             forecast_url,
             {
                 "latitude": place["latitude"],
@@ -133,6 +184,30 @@ def create_app():
         }
         weather_reports.put(coordinates, report)
         return report
+
+    @app.before_request
+    def start_timer():
+        g.request_started = time.perf_counter()
+
+    @app.after_request
+    def count_request(response):
+        # The route ("/api/weather"), never the raw path, so a scanner trying
+        # many paths can't create many label values. A 404 for an unknown path
+        # (or a 405) has no route.
+        endpoint = request.url_rule.rule if request.url_rule else "unmatched"
+        # Probes and scrapes are not visitors' traffic.
+        if endpoint not in ("/healthz", "/metrics"):
+            http_requests.labels(
+                service="backend", endpoint=endpoint, status=response.status_code
+            ).inc()
+            http_request_duration.labels(service="backend", endpoint=endpoint).observe(
+                time.perf_counter() - g.request_started
+            )
+        return response
+
+    @app.get("/metrics")
+    def metrics():
+        return generate_latest(registry), {"Content-Type": CONTENT_TYPE_LATEST}
 
     @app.get("/healthz")
     def healthz():
