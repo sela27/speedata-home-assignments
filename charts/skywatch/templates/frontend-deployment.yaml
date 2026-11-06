@@ -53,6 +53,13 @@ spec:
               path: /healthz
               port: http
             failureThreshold: 6
+          # A stopping pod leaves the Service's endpoints as it gets SIGTERM, but
+          # kube-proxy and Traefik take a moment to stop sending it requests.
+          # Serving 5 s longer means none of them reaches a closed port.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           # gunicorn writes only to /dev/shm, a tmpfs outside the root filesystem.
