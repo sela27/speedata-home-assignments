@@ -1,7 +1,7 @@
 # K3s agent config, written by Ansible (roles/k3s_agent). K3s reads it when it starts.
 
 # The K3s server to join, on the Node network.
-server: https://{{ cp_address }}:6443
+server: {{ k3s_api_server_url }}
 
 # Use the Node network, not the Uplink (eth0): the node's address, and the NIC
 # flannel carries pod traffic on. scripts/1-vms.ps1 names that NIC skywatch0.

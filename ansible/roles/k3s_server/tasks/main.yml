@@ -52,7 +52,7 @@
 # 2-cluster mounts the repo's .state/ (ignored by Git) at /state in the Ansible container.
 - name: Save the kubeconfig for the host to .state/kubeconfig
   ansible.builtin.copy:
-    content: "{{ k3s_server_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://' ~ cp_address ~ ':6443') }}"
+    content: "{{ k3s_server_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', k3s_api_server_url) }}"
     dest: /state/kubeconfig
     mode: "0600"
   delegate_to: localhost   # the Ansible container
