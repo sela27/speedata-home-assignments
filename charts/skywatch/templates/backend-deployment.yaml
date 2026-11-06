@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         {{- include "skywatch.backend.selectorLabels" . | nindent 8 }}
+      annotations:
+        # env from a ConfigMap is read only when a container starts, so a
+        # config change must change the pod template to roll the pods.
+        checksum/config: {{ include (print $.Template.BasePath "/backend-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: backend
@@ -25,3 +29,26 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "skywatch.backend.name" . }}
+          # /healthz doesn't call Open-Meteo, so an upstream outage can't fail
+          # the probes. Readiness reacts within seconds and only takes the pod
+          # out of the Service; liveness waits a minute before restarting it.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          # gunicorn writes only to /dev/shm, a tmpfs outside the root filesystem.
+          # The image's USER is numeric (10001), so the kubelet can check runAsNonRoot.
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
