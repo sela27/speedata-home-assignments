@@ -1,0 +1,43 @@
+# The only values file. Everything under kube-prometheus-stack goes to that dependency;
+# its defaults are in its own values.yaml at the pinned version.
+kube-prometheus-stack:
+  # No receivers to send alerts to. Prometheus still evaluates the alert rules and
+  # shows them, and Grafana shows them too.
+  alertmanager:
+    enabled: false
+
+  # K3s runs the scheduler, the controller-manager and kube-proxy inside its own process,
+  # with their metrics on 127.0.0.1 only, and this cluster has no etcd (its datastore is
+  # SQLite). Prometheus can't reach them, so each would be a target that is always down,
+  # with a firing alert. Disabling them also drops their alert rules.
+  kubeEtcd:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeProxy:
+    enabled: false
+
+  prometheus:
+    prometheusSpec:
+      retention: 24h
+      # No storageSpec: the operator gives Prometheus an emptyDir, so the data lasts
+      # as long as the pod.
+      # By default Prometheus selects only ServiceMonitors labelled with this Helm
+      # release. false selects them all, so the app chart's needs no such label.
+      serviceMonitorSelectorNilUsesHelmValues: false
+
+  grafana:
+    # The Secret Ansible creates once during Bring-up, with a random password (ADR-0002).
+    # Grafana sets the admin password only when it creates its database. With no
+    # persistence (the default) that database is in an emptyDir, so each new pod reads
+    # the Secret again.
+    admin:
+      existingSecret: grafana-admin
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      # sslip.io resolves this name to 192.168.60.11, worker 1's Node network address.
+      hosts:
+        - grafana.192-168-60-11.sslip.io

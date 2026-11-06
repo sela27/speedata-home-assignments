@@ -224,6 +224,10 @@ __marimo__/
 # host kubeconfig and the rendered cloud-init files. None of it is committed.
 .state/
 
+# The monitoring chart's dependency, downloaded by `helm dependency build` from the
+# version pinned in Chart.lock (about 1 MB). ArgoCD and CI download it the same way.
+charts/monitoring/charts/
+
 # Safety net, in case a key or a kubeconfig is ever written somewhere else.
 id_rsa*
 id_ed25519*
