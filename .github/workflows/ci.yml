@@ -75,6 +75,22 @@ jobs:
       - name: helm template
         run: helm template skywatch charts/skywatch
 
+      # The container's ansible-core and collection (ansible/requirements.txt,
+      # ansible/requirements.yml), so the lint resolves kubernetes.core modules
+      # the same way the playbook run does.
+      - name: Install Ansible dev dependencies
+        run: |
+          pip install -r ansible/requirements-dev.txt
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      # From ansible/, so only the Ansible code is linted; from the repo root it
+      # would also lint the charts, this workflow and the agent skill files.
+      # --offline: the collection comes from the step above, and the lint
+      # itself installs nothing and fetches no schemas.
+      - name: ansible-lint
+        working-directory: ansible
+        run: ansible-lint --offline --profile production
+
   # Both images for amd64 and arm64 on every run; pushed only on main.
   # The tag is the full commit SHA, never latest.
   build-push:
