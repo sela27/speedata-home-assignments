@@ -4,10 +4,10 @@
 .DESCRIPTION
     Runs scripts/load.js in a pinned grafana/k6 container. For 5 minutes k6 asks
     the frontend's Ingress for pages, 10 cities in turn, at up to 45 pages a
-    second. The backend's HPA scales it out from 2 replicas to 3 meanwhile, and
-    back to 2 about 5 minutes after the load ends. k6 prints a summary at the end; Ctrl+C
-    stops it early. Run it after 2-cluster, once ArgoCD has synced SkyWatch.
-    Does not need elevation.
+    second. Meanwhile the HPA scales the backend from 2 replicas to 3, and back
+    to 2 about 5 minutes after the load ends. k6 prints a summary at the end,
+    also when Ctrl+C stops it early (it then exits with code 105). Run it after
+    2-cluster, once ArgoCD has synced SkyWatch. Does not need elevation.
 #>
 
 $ErrorActionPreference = 'Stop'
