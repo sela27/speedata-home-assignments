@@ -1,0 +1,39 @@
+# SkyWatch's alerts. Prometheus evaluates them every 30 s and shows them on its Alerts
+# page; Grafana lists them as data source-managed rules. With Alertmanager disabled
+# (values.yaml) they notify no one. docs/alerts.md says how to trigger each one.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: skywatch
+  labels:
+    # Prometheus loads only PrometheusRules labelled with its Helm release
+    # (kube-prometheus-stack's default ruleSelector).
+    release: {{ .Release.Name }}
+spec:
+  groups:
+    - name: skywatch
+      rules:
+        # Both read the backend's own series (service="backend", set by the app), and
+        # both are true only while the last 5 minutes had requests: with none, the ratio
+        # is 0/0 and the quantile is NaN, and neither compares true, so an idle backend
+        # raises nothing. "for" keeps an alert pending until its condition has held at
+        # every evaluation for 5 minutes; only then does it fire.
+        - alert: SkyWatchBackendHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{service="backend", status=~"5.."}[5m]))
+              / sum(rate(http_requests_total{service="backend"}[5m]))
+              > 0.05
+          for: 5m
+          annotations:
+            summary: More than 5% of backend requests answered with a 5xx over the last 5 minutes.
+        # 1 s is one of the histogram's bucket boundaries (prometheus-client's defaults),
+        # so this is exactly "more than 5% of requests took over 1 s": no interpolation
+        # inside a bucket decides it.
+        - alert: SkyWatchBackendHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_seconds_bucket{service="backend"}[5m]))
+            ) > 1
+          for: 5m
+          annotations:
+            summary: Backend p95 latency was above 1 second over the last 5 minutes.
