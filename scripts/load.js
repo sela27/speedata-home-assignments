@@ -15,9 +15,9 @@ export const options = {
       executor: 'ramping-arrival-rate',
       startRate: 1,
       timeUnit: '1s',
-      // A page costs the backend about 2 ms of CPU, so 45 pages/s keep its 2 pods at about 100%
-      // of their CPU request, above the HPA's 70% target: it scales them out to 3. The frontend
-      // stays at about 30% of its CPU limit.
+      // A page costs the backend about 2 ms of CPU, so 45 pages/s keep its 2 pods at about 90%
+      // of their CPU request, above the HPA's 70% target: it scales them out to 3, at about 60%
+      // each. The frontend stays at about 30% of its CPU limit.
       stages: [
         // The slow start fills both backend pods' caches before the full rate arrives.
         { target: 45, duration: '1m' },
