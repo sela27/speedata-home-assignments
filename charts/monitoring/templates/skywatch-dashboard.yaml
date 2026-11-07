@@ -1,0 +1,13 @@
+# The SkyWatch dashboard, from dashboards/skywatch.json: edit that file to change it.
+# Grafana's dashboard sidecar loads every ConfigMap with this label, in any namespace
+# (kube-prometheus-stack's grafana.sidecar.dashboards defaults), and updates the dashboard
+# when ArgoCD syncs a change. Grafana can't save UI edits to it (allowUiUpdates: false).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skywatch-dashboard
+  labels:
+    grafana_dashboard: "1"
+data:
+  skywatch.json: |-
+    {{- .Files.Get "dashboards/skywatch.json" | trim | nindent 4 }}
