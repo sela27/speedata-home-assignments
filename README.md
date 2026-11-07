@@ -19,6 +19,6 @@ Bring-up writes everything it generates (the SSH key pair, the host kubeconfig, 
 - The spec: [issue #1](https://github.com/sela27/speedata-home-assignments/issues/1). Its sub-issues are the tickets, with their order of work.
 - Key decisions: [docs/adr/](docs/adr/)
 - The alerts, and how to trigger each one: [docs/alerts.md](docs/alerts.md)
-- Load for the dashboard and the HPA: `scripts\load.ps1` runs k6 on [scripts/load.js](scripts/load.js) for 5 minutes
+- Load for the dashboard and the HPA: `scripts\load.ps1` runs k6 on [scripts/load.js](scripts/load.js)
 - Project vocabulary: [GLOSSARY.md](GLOSSARY.md)
 - The assignment itself: [skywatch-assignment.md](skywatch-assignment.md)

@@ -4,7 +4,7 @@ import http from 'k6/http';
 import exec from 'k6/execution';
 
 // Each backend pod caches a City lookup for a day and a Weather report for 10 minutes, so
-// however many pages k6 asks for, Open-Meteo gets a few calls per city per pod, and one
+// however many pages k6 asks for, Open-Meteo gets a few calls per city per pod, and about one
 // forecast call per city per pod every 10 minutes.
 const CITIES = ['Haifa', 'Berlin', 'Tokyo', 'London', 'Paris', 'Madrid', 'Rome', 'Cairo', 'Sydney', 'Toronto'];
 
@@ -17,7 +17,8 @@ export const options = {
       timeUnit: '1s',
       // A page costs the backend about 2 ms of CPU, so 45 pages/s keep its 2 pods at about 90%
       // of their CPU request, above the HPA's 70% target: it scales them out to 3, at about 60%
-      // each. The frontend stays at about 30% of its CPU limit.
+      // each. The frontend stays at about 26% of its CPU limit. A faster host may need less CPU
+      // per page: if the backend stays at 2 replicas, raise both targets to 50 (still 3 replicas).
       stages: [
         // The slow start fills both backend pods' caches before the full rate arrives.
         { target: 45, duration: '1m' },
