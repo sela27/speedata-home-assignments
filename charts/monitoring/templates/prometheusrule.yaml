@@ -14,10 +14,9 @@ spec:
     - name: skywatch
       rules:
         # Both read the backend's own series (service="backend", set by the app), and
-        # both are true only while the last 5 minutes had requests: with none, the ratio
-        # is 0/0 and the quantile is NaN, and neither compares true, so an idle backend
-        # raises nothing. "for" keeps an alert pending until its condition has held at
-        # every evaluation for 5 minutes; only then does it fire.
+        # both are true only while the last 5 minutes had requests, so an idle backend
+        # raises nothing: with no requests the ratio and the quantile are NaN, which
+        # compares false (and before the first 5xx the ratio has no value at all).
         - alert: SkyWatchBackendHighErrorRate
           expr: |
             sum(rate(http_requests_total{service="backend", status=~"5.."}[5m]))
@@ -25,7 +24,7 @@ spec:
               > 0.05
           for: 5m
           annotations:
-            summary: More than 5% of backend requests answered with a 5xx over the last 5 minutes.
+            summary: Over the last 5 minutes, more than 5% of backend requests are answered with a 5xx.
         # 1 s is one of the histogram's bucket boundaries (prometheus-client's defaults),
         # so this is exactly "more than 5% of requests took over 1 s": no interpolation
         # inside a bucket decides it.
@@ -36,4 +35,4 @@ spec:
             ) > 1
           for: 5m
           annotations:
-            summary: Backend p95 latency was above 1 second over the last 5 minutes.
+            summary: Over the last 5 minutes, the backend's p95 latency is above 1 second.
