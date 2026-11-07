@@ -1,0 +1,36 @@
+# Makes the monitoring app's Prometheus scrape /metrics on every frontend and backend
+# pod. That Prometheus selects ServiceMonitors in every namespace (the default in
+# kube-prometheus-stack), with no release label needed (charts/monitoring/values.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    {{- include "skywatch.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+  annotations:
+    # The ServiceMonitor CRD comes with the monitoring app, not with this chart. While
+    # it is missing, ArgoCD's dry run of this object fails the sync before anything is
+    # applied. This skips that dry run, only while the CRD is missing: the rest of the
+    # chart is applied, and the sync fails on this object alone. A retry of the sync
+    # applies it once the CRD exists (5 retries, ~2.5 min, apps/skywatch.yaml). If the
+    # CRD comes later, the next commit's sync does (auto-sync skips a failed commit).
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  # Both Services carry this label (_helpers.tpl). Only Services in this
+  # ServiceMonitor's own namespace are selected.
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+  endpoints:
+    # Each Service's port named http, which leads to gunicorn's port in each pod.
+    # Prometheus scrapes every pod behind it, every 30 s (the monitoring app's
+    # default interval).
+    - port: http
+      path: /metrics
+      # The operator labels each target with service (the Service's name) and endpoint
+      # (the port's name), and the services' own metrics have labels with those names
+      # (http_requests_total{service, endpoint, status}). true keeps the services'
+      # values; false would rename them exported_service and exported_endpoint.
+      # Series without those labels (up, openmeteo_*, cache_*) get the target's values.
+      honorLabels: true
