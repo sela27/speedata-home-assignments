@@ -10,4 +10,5 @@ Multipass's default network addresses VMs over DHCP, and those addresses drift, 
 
 ## Consequences
 
-- **Independent of the Multipass driver**: under `hcs` (Multipass 1.17) the default network is a per-zone network, and in the #4 spike one VM restart changed its address; under the older `hyperv` driver it was the Default Switch, whose subnet is re-randomised on every Windows reboot.
+- **Independent of the Multipass driver**: under `hcs` (Multipass 1.17) the default network is a per-zone network, and in the [#4](https://github.com/sela27/speedata-home-assignments/issues/4) spike one VM restart changed its address; under the older `hyperv` driver it was the Default Switch, whose subnet is re-randomised on every Windows reboot.
+- **How the static IP is applied**: Hyper-V presents a VM's two NICs in random order, so the Node network NIC is found by a fixed MAC, `52:54:00:60:00:<last octet>`, and renamed `skywatch0`, the name K3s's `flannel-iface` uses ([#18](https://github.com/sela27/speedata-home-assignments/issues/18)). On first boot it is set up with `ip`, not `netplan apply`, which would also re-lease the Uplink and can leave Multipass on a stale address ([#52](https://github.com/sela27/speedata-home-assignments/issues/52)). The README's [problems with the Node network and the VMs](../../README.md#the-node-network-and-the-vms) has the details.

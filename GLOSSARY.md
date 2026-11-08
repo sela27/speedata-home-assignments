@@ -39,5 +39,5 @@ The private, fixed-address network shared by the host and the cluster nodes; all
 _Avoid_: internal switch, mgmt network, second NIC
 
 **Uplink**:
-A node's connection to the internet, used only for outbound traffic such as package installs and image pulls.
+A node's connection to the internet, used for outbound traffic such as package installs and image pulls, and by Multipass itself to manage the VM. Cluster traffic never goes over it.
 _Avoid_: Default Switch network, NAT network
