@@ -93,7 +93,7 @@ write_files:
             addresses: [$($node.Address)/24]
 runcmd:
   # Sets up only the Node network NIC now, found by its MAC. Later boots use the file above.
-  # ip can't rename a NIC that is up, so the NIC goes down first.
+  # The NIC goes down first, so ip can rename it.
   # This doesn't use netplan apply. netplan apply also reconfigures the Uplink, which drops
   # its DHCP lease and gets a new address. The host then has two neighbor entries for the
   # Uplink's MAC, and Multipass can pick the stale one until the launch times out.
