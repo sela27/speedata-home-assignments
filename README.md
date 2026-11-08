@@ -2,7 +2,7 @@
 
 A small weather-query app (a Flask frontend and a backend API that calls Open-Meteo) running on a local multi-node K3s cluster, delivered through CI (GitHub Actions → GHCR) and GitOps (ArgoCD).
 
-> **Status: work in progress.** Two pieces of milestone M6 are still to come: the proof of the Key flow ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)) and a final pass over the README ([#35](https://github.com/sela27/speedata-home-assignments/issues/35)).
+> **Status: work in progress.** Two pieces of milestone M6 are still to come: the video of the Key flow ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)) and a final pass over the README ([#35](https://github.com/sela27/speedata-home-assignments/issues/35)).
 
 ## Chosen path
 
@@ -399,6 +399,35 @@ flowchart TB
 
 A pull request runs `lint-test` and builds both images without pushing them. A merge to `main` runs all three jobs. `lint-test` runs ruff, pytest, `helm lint` and `helm template`, and ansible-lint. `build-push` builds `skywatch-frontend` and `skywatch-backend` for amd64 and arm64 and pushes them to GHCR, tagged with the full commit SHA. `bump-tags` is the Tag bump: one commit that sets both image tags in `charts/skywatch/values.yaml`, pushed with `GITHUB_TOKEN` and `[skip ci]`, so it starts no CI run (the loop guards in [Design decisions](#design-decisions)). ArgoCD checks `main` every 60 s, sees the new tags and syncs the `skywatch` app. Each Deployment rolls its pods over to the new image, which the new pods pull over the Uplink. The frontend's single pod is replaced only once the new one is Ready, and each old pod keeps serving for 5 s after it leaves its Service. Nobody runs kubectl or helm, and the new commit shows in the footer within a few minutes.
 
+#### Proof: one change, end to end
+
+On 8 November 2026 I changed the page's subtitle to "Current weather for any city, shipped by the Key flow" and merged it in [#55](https://github.com/sela27/speedata-home-assignments/pull/55). Its squash commit, [`ae5adc3`](https://github.com/sela27/speedata-home-assignments/commit/ae5adc347d90503509bd63dcbb06ccc5fec105b4), is the SHA to follow through the four screenshots below. Nobody ran kubectl or helm, or clicked Sync in ArgoCD.
+
+| Time (UTC+2) | What happened |
+| --- | --- |
+| 16:27:09 | The merge to `main`, commit `ae5adc3`, starts CI [run #59](https://github.com/sela27/speedata-home-assignments/actions/runs/42489875158). |
+| 16:28:24 | `bump-tags` commits the Tag bump, `f3f130f`, which sets both image tags to `ae5adc3`. The run ends green after 1 min 15 s. |
+| 16:28:36 | ArgoCD syncs `skywatch` to `f3f130f`, and the new pods start. |
+| 16:28:43 | The new frontend pod and both new backend pods are Ready. |
+
+From the merge to the new pods: 1 min 34 s. ArgoCD was quick this time: it polls every 60 s, so the sync can come up to a minute after the Tag bump.
+
+1. **The commit**: `ae5adc3` on `main`, the one-line change to the subtitle.
+
+   ![The commit ae5adc3 on main, changing the subtitle](docs/evidence/key-flow-1-commit.png)
+
+2. **The green Actions run**: run #59 on `ae5adc3`, with `lint-test`, both `build-push` jobs and `bump-tags` green.
+
+   ![CI run #59 on ae5adc3, all four jobs green](docs/evidence/key-flow-2-actions.png)
+
+3. **ArgoCD synced to the new revision**: `skywatch` is `Synced` and `Healthy` at `f3f130f`. That revision is the Tag bump, not `ae5adc3`, and its message, `Tag bump to ae5adc3… [skip ci]`, links the two. The tree shows the backend's new ReplicaSet, `rev:5`, and its two pods.
+
+   ![ArgoCD: skywatch Synced to f3f130f and Healthy](docs/evidence/key-flow-3-argocd.png)
+
+4. **The new SHA in the footer**: the new subtitle, and `Frontend ae5adc3 · Backend ae5adc3`.
+
+   ![SkyWatch with the new subtitle and the footer showing ae5adc3](docs/evidence/key-flow-4-footer.png)
+
 ## Design decisions
 
 The reasons behind the main choices. Two of them have an ADR, with the options that were weighed.
@@ -469,7 +498,7 @@ What I did myself:
 
 - Every decision in grilling, and the answers to the questions the agents raised in tickets and PRs.
 - Every approval: none of the 15 PRs below reached `main` without my go-ahead.
-- The `ready-for-human` tickets: Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's screenshots and video ([#34](https://github.com/sela27/speedata-home-assignments/issues/34), still to come).
+- The `ready-for-human` tickets: Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's [screenshots](#proof-one-change-end-to-end) and video ([#34](https://github.com/sela27/speedata-home-assignments/issues/34): the video is still to come).
 - `0-network`, run elevated: the one step that needs admin rights.
 - The Bring-up rehearsal from scratch, following only this README ([#31](https://github.com/sela27/speedata-home-assignments/issues/31#issuecomment-6720947763)).
 
@@ -563,6 +592,7 @@ Most important first. The spec ([issue #1](https://github.com/sela27/speedata-ho
 ## Where to look
 
 - The spec: [issue #1](https://github.com/sela27/speedata-home-assignments/issues/1). Its sub-issues are the tickets, with their order of work.
+- Proof of the Key flow: [one change, end to end](#proof-one-change-end-to-end), in four screenshots
 - Key decisions: the [design decisions](#design-decisions) above, and the ADRs in [docs/adr/](docs/adr/)
 - The alerts, and how to trigger each one: [docs/alerts.md](docs/alerts.md)
 - Load for the dashboard and the HPA: `scripts\load.ps1` runs k6 on [scripts/load.js](scripts/load.js)
