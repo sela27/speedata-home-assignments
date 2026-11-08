@@ -13,12 +13,12 @@ frontend:
     BACKEND_URL: http://skywatch-backend
   # Measured with docker stats: 1m CPU idle, about 4 ms of CPU per page
   # (so 50m is about 12 pages/s), 67 MiB at most under load. The CPU limit is
-  # a quarter of a 2-vCPU worker (about 120 pages/s); the memory limit is
-  # about twice the peak.
+  # a quarter of a 2-vCPU worker (about 120 pages/s). The memory request is
+  # above the peak, and the limit about twice it.
   resources:
     requests:
       cpu: 50m
-      memory: 64Mi
+      memory: 80Mi
     limits:
       cpu: 500m
       memory: 128Mi

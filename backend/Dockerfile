@@ -33,5 +33,6 @@ EXPOSE 8080
 # /dev/shm (memory-backed), so the root filesystem can be read-only.
 # gunicorn's control socket is unused and would need a writable home dir.
 # 1 worker, so the Prometheus metrics live in one process.
-# 16 threads, more than load.js's 10 cities, so a cold pod fetches all at once.
+# 16 threads, more than load.js's 10 cities, so a cold pod fetches
+# all 10 cities at once.
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "16", "--worker-tmp-dir", "/dev/shm", "--no-control-socket", "app:create_app()"]

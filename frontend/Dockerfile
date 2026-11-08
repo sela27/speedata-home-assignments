@@ -34,5 +34,6 @@ EXPOSE 8080
 # /dev/shm (memory-backed), so the root filesystem can be read-only.
 # gunicorn's control socket is unused and would need a writable home dir.
 # 1 worker, so the Prometheus metrics live in one process.
-# 128 threads, more than load.js's 100 waiting pages, so a probe always gets one.
+# 128 threads, more than load.js's 100 waiting pages, so a probe
+# always gets one.
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "128", "--worker-tmp-dir", "/dev/shm", "--no-control-socket", "app:create_app()"]
