@@ -6,6 +6,8 @@ import exec from 'k6/execution';
 // Each backend pod caches a City lookup for a day and a Weather report for 10 minutes, so
 // however many pages k6 asks for, Open-Meteo gets a few calls per city per pod, and about one
 // forecast call per city per pod every 10 minutes.
+// backend/Dockerfile's 16 gunicorn threads are more than these cities, so a cold backend pod
+// fetches them all at once: check the threads when adding cities.
 const CITIES = ['Haifa', 'Berlin', 'Tokyo', 'London', 'Paris', 'Madrid', 'Rome', 'Cairo', 'Sydney', 'Toronto'];
 
 export const options = {
@@ -27,6 +29,8 @@ export const options = {
       // A VU waits for its page, so slow pages need more VUs to keep the rate. At most 100
       // wait at once; k6 drops the pages beyond that, so a stalled app is not buried.
       preAllocatedVUs: 10,
+      // frontend/Dockerfile's 128 gunicorn threads are more than this, so a probe always finds a
+      // free thread: check the threads when raising it.
       maxVUs: 100,
     },
   },

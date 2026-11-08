@@ -12,13 +12,13 @@ frontend:
     # The backend's internal Service (templates/backend-service.yaml).
     BACKEND_URL: http://skywatch-backend
   # Measured with docker stats: 1m CPU idle, about 4 ms of CPU per page
-  # (so 50m is about 12 pages/s), 56 MiB at most under load. The CPU limit is
-  # a quarter of a 2-vCPU worker (about 120 pages/s); the memory limit is
-  # about twice the peak.
+  # (so 50m is about 12 pages/s), 67 MiB at most under load. The CPU limit is
+  # a quarter of a 2-vCPU worker (about 120 pages/s). The memory request is
+  # above the peak, and the limit about twice it.
   resources:
     requests:
       cpu: 50m
-      memory: 64Mi
+      memory: 80Mi
     limits:
       cpu: 500m
       memory: 128Mi
@@ -32,7 +32,7 @@ backend:
     FORECAST_URL: https://api.open-meteo.com/v1/forecast
     HTTP_TIMEOUT_SECONDS: "5"
   # Measured with docker stats: 1m CPU idle, under 1 ms of CPU per cached
-  # API call, 65 MiB at most under load. The CPU request is low so the HPA's
+  # API call, 66 MiB at most under load. The CPU request is low so the HPA's
   # 70% target (35m, about 40 calls/s per pod) is easy to reach in a demo.
   # Checked in the cluster with scripts/load.js: its load scales 2 pods to 3.
   # Limits as for the frontend; the caches grow by at most one entry per

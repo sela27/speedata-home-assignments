@@ -8,9 +8,9 @@
     to 2 about 5 minutes after the load ends. k6 prints a summary at the end,
     also when Ctrl+C stops it early (it then exits with code 105). Run it after
     2-cluster, once ArgoCD has synced SkyWatch. Does not need elevation.
-    Start it right after a deploy or at least 10 minutes after the last run:
-    each backend pod keeps a Weather report for 10 minutes, and reports left
-    from a recent run would all expire at once mid-run, which can stall pages.
+    Each backend pod keeps a Weather report for 10 minutes, so reports left
+    from a recent run can expire together mid-run. That only makes those
+    cities' pages wait a few seconds for Open-Meteo.
 #>
 
 $ErrorActionPreference = 'Stop'
