@@ -62,13 +62,13 @@ Tested with these versions. Each check runs in a normal Windows PowerShell windo
 
 | Tool | Tested with | Check | What it is for |
 | --- | --- | --- | --- |
-| Windows 11 Pro, with Hyper-V on | 25H2 (build 26200) | `Get-Service vmms` is `Running`, and `Get-Module -ListAvailable Hyper-V` lists the module | the VMs, and the switch for the Node network |
+| Windows 11 Pro, with Hyper-V on | 25H2 (build 26200) | `Get-Service vmms` is `Running`, and `Get-Module -ListAvailable Hyper-V` lists the module. | the VMs, and the switch for the Node network |
 | Windows PowerShell | 5.1.26100 | `$PSVersionTable.PSVersion` | runs the scripts. They were tested in 5.1 only, not in PowerShell 7. |
-| [Multipass](https://canonical.com/multipass/install) | 1.17.0, `hcs` driver | `multipass version`, and `multipass get local.driver` prints `hcs` | creates the three VMs |
-| [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) | 4.80.0 (Engine 29.6.1), WSL 2 backend | `docker version` prints a `Server` section | runs the Ansible container (`2-cluster`) and k6 (`load`) |
+| [Multipass](https://canonical.com/multipass/install) | 1.17.0, `hcs` driver | `multipass version`, and `multipass get local.driver` prints `hcs`. | creates the three VMs. |
+| [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) | 4.80.0 (Engine 29.6.1), WSL 2 backend | `docker version` prints a `Server` section. | runs the Ansible container (`2-cluster`) and k6 (`load`). |
 | [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/) | v1.36.0 | `kubectl version --client` | the passwords and the checks. Use 1.36 to 1.38, within one minor version of K3s v1.37. |
 | [Git](https://git-scm.com/install/windows) | 2.53.0 | `git --version` | the clone |
-| OpenSSH client | 9.5p2, built into Windows 11 | `Get-Command ssh-keygen` finds it, and `ssh -V` prints the version | `1-vms` generates the SSH key that Ansible logs in with |
+| OpenSSH client | 9.5p2, built into Windows 11 | `Get-Command ssh-keygen` finds it, and `ssh -V` prints the version. | `1-vms` generates the SSH key that Ansible logs in with. |
 | [Helm](https://helm.sh/docs/intro/install/) (optional) | v4.1.4 | `helm version` | not used by any Bring-up step: `2-cluster` uses the Helm v4.3.1 inside the Ansible container. Only for running CI's chart checks locally, such as `helm lint --strict charts/skywatch`. |
 
 `curl.exe`, used in the checks below, ships with Windows 11.
@@ -151,7 +151,7 @@ In a normal PowerShell window:
 .\scripts\1-vms.ps1
 ```
 
-It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs with Multipass, one after the other. Each VM has two NICs. Its default NIC, on Multipass's own network, is its Uplink to the internet. The second NIC, on the `skywatch` switch, gets the VM's fixed Node network address through cloud-init. cloud-init also installs the public key, so Ansible can log in.
+It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs with Multipass, one after the other. Each VM has two NICs. Its default NIC, on Multipass's own network, is its Uplink to the internet. Its Node network NIC, on the `skywatch` switch, gets the VM's fixed Node network address through cloud-init. cloud-init also installs the public key, so Ansible can log in.
 
 - **Expected:** `Generated the SSH key pair ...\.state\id_ed25519.`, Multipass's progress for each VM (`Launched: skywatch-cp in zone1`), and one line per VM:
 
@@ -162,7 +162,7 @@ It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs w
   ```
 
   `multipass list` then shows the three VMs `Running`, each with its 192.168.60.x address.
-- **Takes:** about 1.5 minutes, about 30 s per VM, once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first.
+- **Takes:** about 1.5 minutes, about 30 seconds per VM, once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first.
 - **Re-run:** safe. A running VM is left unchanged (`skywatch-cp at 192.168.60.10: already running; left unchanged.`). A stopped VM, for example after a host reboot, is started. A re-run never resizes a VM. The script stops if `.state\id_ed25519` is missing while the VMs exist, because they accept only that key: restore the key, or run `down` first.
 
 #### 2. The cluster and ArgoCD: `2-cluster`
@@ -176,7 +176,7 @@ It builds the Ansible container image from `ansible/` and runs the playbook `ans
 1. K3s v1.37.2+k3s1 on the control plane, which is tainted `NoSchedule`, so app pods run only on the workers.
 2. The two workers join, with a token read from the control plane at run time and never stored on the host or in Git.
 3. `.state\kubeconfig` for kubectl on this host.
-4. The GitOps bootstrap: ArgoCD (chart 10.14.0, ArgoCD v3.6.1), the Grafana admin Secret with a random password, and the root Application.
+4. The GitOps bootstrap, which installs ArgoCD (chart 10.14.0, ArgoCD v3.6.1), creates the Grafana admin Secret with a random password, and applies the root Application.
 
 From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatch` app and the `monitoring` app (Prometheus and Grafana).
 
@@ -271,7 +271,7 @@ kubectl get nodes
 | SkyWatch | <http://skywatch.192-168-60-11.sslip.io> | none |
 | ArgoCD | <http://argocd.192-168-60-11.sslip.io> | `admin`, and the password below |
 | Grafana | <http://grafana.192-168-60-11.sslip.io> | `admin`, and the password below. The SkyWatch dashboard is at `/d/skywatch/skywatch`. |
-| Prometheus | no Ingress | `kubectl port-forward`, see [docs/alerts.md](docs/alerts.md) |
+| Prometheus | no Ingress | `kubectl port-forward`, see [docs/alerts.md](docs/alerts.md). |
 
 sslip.io answers each of these names with the address inside it, 192.168.60.11 (worker 1). Traefik, K3s's Ingress controller, routes each name to its app. Plain HTTP: there is no TLS.
 
@@ -440,7 +440,7 @@ The reasons behind the main choices. Two of them have an ADR, with the options t
 | **No `replicas` field in the backend Deployment:** the HPA sets the count, 2 to 5. | With the field in Git, ArgoCD would see each scale-out as drift, and self-heal would set it back. |
 | **The Tag bump's loop guards:** it pushes with `GITHUB_TOKEN`, with `[skip ci]` in its message, and commits nothing when nothing changed. For two quick merges, CI runs one at a time per branch: a running run is never cancelled, a newer push replaces a pending one, and the Tag bump rebases onto `main` before it pushes. | A `GITHUB_TOKEN` push starts no workflow run, so the Tag bump can't start CI again, and `[skip ci]` is a second guard. The queue and the rebase keep two quick merges from losing a rollout: a replaced run's commit is in the newer one. |
 | **Sealed Secrets rejected:** Bring-up creates the Grafana Secret instead ([ADR-0002](docs/adr/0002-bootstrap-created-secret-over-sealed-secrets.md)). | A SealedSecret is encrypted to one cluster's key, and Bring-up creates a new cluster every time, on a reviewer's machine too, so the committed file would not decrypt there. |
-| **sslip.io hostnames:** `skywatch.`, `argocd.` and `grafana.192-168-60-11.sslip.io` ([how they resolve](#urls-and-passwords)). | Readable names, with no hosts file to edit and no DNS server to run, and the three apps share port 80. If a resolver blocks private answers, the hosts file is the [fallback](#if-your-dns-resolver-blocks-sslipio). |
+| **sslip.io hostnames:** `skywatch.`, `argocd.` and `grafana.192-168-60-11.sslip.io` ([how they resolve](#urls-and-passwords)) | Readable names, with no hosts file to edit and no DNS server to run, and the three apps share port 80. If a resolver blocks private answers, the hosts file is the [fallback](#if-your-dns-resolver-blocks-sslipio). |
 | **ArgoCD polls Git every 60 s:** no jitter and no webhook. | GitHub can't reach this cluster: the Node network is internal, and nothing outside the host can reach the Uplinks. 60 s keeps the Key flow to a few minutes. |
 | **Image tags are the full commit SHA:** never `latest`. | Every pod names the commit it runs, in the footer and in `/healthz`, and each Tag bump is a change ArgoCD can see. |
 
@@ -452,7 +452,7 @@ The reasons behind the main choices. Two of them have an ADR, with the options t
 | --- | --- | --- | --- | --- |
 | Grafana admin password | Grafana's `admin` login: 24 random letters and digits | `2-cluster` (the `gitops_bootstrap` role), once. A re-run never rotates it. | The Secret `grafana-admin` in `monitoring`, keys `admin-user` and `admin-password`. Grafana reads it through `admin.existingSecret`. ArgoCD doesn't track it. | Only its name, in [charts/monitoring/values.yaml](charts/monitoring/values.yaml) |
 | ArgoCD admin password | ArgoCD's `admin` login | ArgoCD, when it is installed | The Secret `argocd-initial-admin-secret` in `argocd` | Nothing |
-| K3s join token | Lets a worker join the cluster | The K3s server, at its first start | `/var/lib/rancher/k3s/server/node-token` on the control plane. Ansible reads it at run time, with `no_log`. The installer keeps it, root-only, in `/etc/systemd/system/k3s-agent.service.env` on each worker, because the agent needs it on every start. | Nothing. Not in `.state\` either. |
+| K3s join token | Lets a worker join the cluster. | The K3s server, at its first start | `/var/lib/rancher/k3s/server/node-token` on the control plane. Ansible reads it at run time, with `no_log`. The installer keeps it, root-only, in `/etc/systemd/system/k3s-agent.service.env` on each worker, because the agent needs it on every start. | Nothing. It isn't in `.state\` either. |
 | SSH key pair | Ansible's login to the VMs | `1-vms` (`ssh-keygen`), once | `.state\id_ed25519` on the host. The public key is in each VM, through cloud-init. | Ignored (`.state/`, `id_ed25519*`) |
 | Host kubeconfig | The cluster's admin credentials, for kubectl | `2-cluster` (the `k3s_server` role) | `.state\kubeconfig` on the host | Ignored (`.state/`, `kubeconfig`) |
 | `GITHUB_TOKEN` | CI's token, for the pushes to GHCR and the Tag bump | GitHub Actions, for each job. It expires when the job ends. | GitHub. Each job gets only what it needs: `packages: write` for `build-push`, `contents: write` for `bump-tags`, read-only for the rest. | Only the reference `secrets.GITHUB_TOKEN` |
@@ -467,8 +467,8 @@ Five of the eight, with Observability as the one in depth:
 
 | Bonus | Where |
 | --- | --- |
-| **Observability** | The monitoring app, [charts/monitoring](charts/monitoring/): kube-prometheus-stack 92.21.2 (Prometheus and Grafana), deployed by ArgoCD. RED metrics written by hand in both services ([backend/app.py](backend/app.py), [frontend/app.py](frontend/app.py)), plus Open-Meteo latency and cache hits in the backend. A ServiceMonitor ([charts/skywatch/templates/servicemonitor.yaml](charts/skywatch/templates/servicemonitor.yaml)). The SkyWatch dashboard as code ([charts/monitoring/dashboards/skywatch.json](charts/monitoring/dashboards/skywatch.json)). Two alert rules ([charts/monitoring/templates/prometheusrule.yaml](charts/monitoring/templates/prometheusrule.yaml), explained in [docs/alerts.md](docs/alerts.md)). A k6 load generator ([scripts/load.js](scripts/load.js)). |
-| **Multi-arch images** | Both images for `linux/amd64` and `linux/arm64`, built with buildx and QEMU: the `build-push` job in [.github/workflows/ci.yml](.github/workflows/ci.yml). |
+| **Observability** | The monitoring app, [charts/monitoring](charts/monitoring/), is kube-prometheus-stack 92.21.2 (Prometheus and Grafana), deployed by ArgoCD. RED metrics written by hand in both services ([backend/app.py](backend/app.py), [frontend/app.py](frontend/app.py)), plus Open-Meteo latency and cache hits in the backend. A ServiceMonitor ([charts/skywatch/templates/servicemonitor.yaml](charts/skywatch/templates/servicemonitor.yaml)). The SkyWatch dashboard as code ([charts/monitoring/dashboards/skywatch.json](charts/monitoring/dashboards/skywatch.json)). Two alert rules ([charts/monitoring/templates/prometheusrule.yaml](charts/monitoring/templates/prometheusrule.yaml), explained in [docs/alerts.md](docs/alerts.md)). A k6 load generator ([scripts/load.js](scripts/load.js)). |
+| **Multi-arch images** | Both images for `linux/amd64` and `linux/arm64`, built with buildx and QEMU: the `build-push` job in [.github/workflows/ci.yml](.github/workflows/ci.yml) |
 | **ArgoCD app-of-apps** | The root Application ([ansible/roles/gitops_bootstrap/files/root-app.yaml](ansible/roles/gitops_bootstrap/files/root-app.yaml)) deploys every Application in [apps/](apps/): `skywatch` and `monitoring`. |
 | **Ingress** | The frontend through K3s's Traefik, with no NodePort ([charts/skywatch/templates/frontend-ingress.yaml](charts/skywatch/templates/frontend-ingress.yaml)). ArgoCD and Grafana have one too. |
 | **Autoscaling** | An HPA on the backend's CPU: 2 to 5 replicas, at 70% of the CPU request ([charts/skywatch/templates/backend-hpa.yaml](charts/skywatch/templates/backend-hpa.yaml)). `load` scales it from 2 to 3. |
@@ -512,14 +512,14 @@ Each problem with what I saw, its cause and its fix, grouped by area, with a lin
 ### The apps under load
 
 - **Rollouts dropped a few requests.** In the first live rollout of the hardened chart, 4 of 261 page requests failed with connection refused or Bad Gateway. A stopping pod leaves its Service's endpoints while Traefik and kube-proxy still send it requests for a moment. A 5 s `preStop` sleep in both containers fixed it: 0 of 266 failed, and 0 in every rollout checked since ([#43](https://github.com/sela27/speedata-home-assignments/pull/43)).
-- **Open-Meteo is slow from this network at some hours.** Calls sometimes took about 3.5 s, and some passed the backend's 5 s timeout, so a few pages showed "Weather service unavailable". Open-Meteo's response time from here varies by the hour, which is outside the project, so nothing was changed for it. Two things limit the harm: errors are never cached, so the next request asks again, and the 5 s timeout per call keeps a page from hanging ([#39](https://github.com/sela27/speedata-home-assignments/pull/39), [#49](https://github.com/sela27/speedata-home-assignments/issues/49#issuecomment-6719823310)).
+- **Open-Meteo is slow from this network at some hours.** Calls sometimes took about 3.5 seconds, and some passed the backend's 5 s timeout, so a few pages showed "Weather service unavailable". Open-Meteo's response time from here varies by the hour, which is outside the project, so nothing was changed for it. Two things limit the harm: errors are never cached, so the next request asks again, and the 5 s timeout per call keeps a page from hanging ([#39](https://github.com/sela27/speedata-home-assignments/pull/39), [#49](https://github.com/sela27/speedata-home-assignments/issues/49#issuecomment-6719823310)).
 - **A cold backend pod stalled the frontend, and Traefik answered 503.** Three of the first 4 `load` runs had 4 to 13 s of Traefik 503s. A backend pod with empty caches (new from the scale-out, or with its Weather reports all expired together) held all 4 threads of the single frontend while Open-Meteo was slow, so the frontend's probe timed out and it left its Service. The frontend now runs 128 threads and the backend 16: the next run had no 503s ([#49](https://github.com/sela27/speedata-home-assignments/issues/49), [#50](https://github.com/sela27/speedata-home-assignments/pull/50)).
 
 ### Monitoring
 
 - **The 2 GiB control plane ran out of memory.** On the monitoring app's first sync, the API server stopped answering, the kernel killed containerd, and the API was back only after about 5 minutes. The API server needs about 800 MiB more while it takes in the stack's 10 CRDs, which a 2 GiB VM with no swap didn't have. The control plane now has 4 GiB ([#45](https://github.com/sela27/speedata-home-assignments/pull/45)).
 - **ArgoCD leaves CRDs behind.** Deleting the monitoring app left its 10 CRDs, the admission TLS Secret and the kubelet Service, which the first plan expected it to delete. ArgoCD doesn't track CRDs as the app's, so its finalizer leaves them. The comment in [apps/monitoring.yaml](apps/monitoring.yaml) now says so: removing the app means deleting them by hand ([#45](https://github.com/sela27/speedata-home-assignments/pull/45)).
-- **ArgoCD shows failures that clear by themselves.** The monitoring app's first sync fails once while Prometheus's images download, and its retry fixes it ([#45](https://github.com/sela27/speedata-home-assignments/pull/45)). After the merges of [#45](https://github.com/sela27/speedata-home-assignments/pull/45) and [#46](https://github.com/sela27/speedata-home-assignments/pull/46), `skywatch` showed `Degraded` for about 10 and 28 s, because the HPA had no CPU sample for the new pods yet. Not changed, since both clear on their own.
+- **ArgoCD shows failures that clear by themselves.** The monitoring app's first sync fails once while Prometheus's images download, and its retry fixes it ([#45](https://github.com/sela27/speedata-home-assignments/pull/45)). After the merges of [#45](https://github.com/sela27/speedata-home-assignments/pull/45) and [#46](https://github.com/sela27/speedata-home-assignments/pull/46), `skywatch` showed `Degraded` for about 10 and 28 seconds, because the HPA had no CPU sample for the new pods yet. Not changed, since both clear on their own.
 - **A default alert would fire forever without Alertmanager.** `PrometheusNotConnectedToAlertmanagers` was pending live, and it can never clear, because Alertmanager is disabled: there are no receivers. That default rule is now off ([#45](https://github.com/sela27/speedata-home-assignments/pull/45)).
 - **Prometheus renamed our `service` and `endpoint` labels.** Without `honorLabels`, the backend's series came out as `exported_service="backend"`, so the dashboard's and the alerts' queries by `service="backend"` would have found nothing. The Prometheus Operator gives each target labels with the same names, and Prometheus renames the scraped ones. `honorLabels: true` keeps ours ([#46](https://github.com/sela27/speedata-home-assignments/pull/46)).
 - **Two VMs' clocks fell 9 h 23 min behind.** Prometheus dropped their cAdvisor samples as too old, so the CPU panel showed only the pod on worker 1. Both VMs looked paused for about 9 hours, for a reason I didn't find; the clocks corrected themselves within about 10 minutes, and nothing was changed ([#47](https://github.com/sela27/speedata-home-assignments/pull/47)).
@@ -546,6 +546,8 @@ Most important first. The spec (issue [#1](https://github.com/sela27/speedata-ho
 10. **macOS and Linux hosts.** Every Bring-up step is a Windows PowerShell script, the Node network needs a Hyper-V switch, and the Ansible image is amd64 only.
 
 ## 5. Proof of the GitOps flow
+
+The assignment's GitOps flow is what this README calls the [Key flow](#the-key-flow).
 
 ### One change, end to end
 
@@ -590,7 +592,7 @@ Most of the video is waiting for CI. To jump:
 | [0:24](https://www.youtube.com/watch?v=ephiSol0TxE&t=24s) | The pull request on GitHub, and its CI |
 | [2:10](https://www.youtube.com/watch?v=ephiSol0TxE&t=130s) | Squash and merge |
 | [2:16](https://www.youtube.com/watch?v=ephiSol0TxE&t=136s) | CI on `main`, up to the Tag bump |
-| [3:54](https://www.youtube.com/watch?v=ephiSol0TxE&t=234s) | ArgoCD syncs `skywatch` and rolls its pods: `Progressing`, then `Healthy` |
+| [3:54](https://www.youtube.com/watch?v=ephiSol0TxE&t=234s) | ArgoCD syncs `skywatch` and rolls its pods: `Progressing`, then `Healthy`. |
 | [4:10](https://www.youtube.com/watch?v=ephiSol0TxE&t=250s) | The page with the new subtitle, and `9a7a8c7` in the footer |
 
 ## How I worked with AI
@@ -604,15 +606,15 @@ The process:
 3. **Tickets (`to-tickets`).** The spec was cut into 34 tickets, [#2](https://github.com/sela27/speedata-home-assignments/issues/2) to [#35](https://github.com/sela27/speedata-home-assignments/issues/35), the sub-issues of [#1](https://github.com/sela27/speedata-home-assignments/issues/1). Each has what to build, acceptance criteria, "blocked by" edges to the tickets it needs, and its milestone (M0 to M6) in the title. Each is labelled `ready-for-agent` or `ready-for-human`. Two more came up on the way: [#49](https://github.com/sela27/speedata-home-assignments/issues/49) from a load test, and [#52](https://github.com/sela27/speedata-home-assignments/issues/52) from the rehearsal.
 4. **Implementation (`implement-spec`, `implement`, `tdd`).** One agent per ticket, each on its own branch named `<issue>-<slug>`. Test first: a failing test at a service's HTTP boundary, or a failing scripted check of the acceptance criteria where there was no code seam, then the change that makes it pass. Tickets that didn't block each other ran in parallel, and each round's branches were merged into one integration branch.
 5. **Code review (`code-review`).** Each round was reviewed on two axes: the repository's standards, and the ticket's spec. The fixes went on their own branch.
-6. **Pull request (`pr`).** One PR per round up to [#51](https://github.com/sela27/speedata-home-assignments/pull/51), then one per ticket, and two for [#34](https://github.com/sela27/speedata-home-assignments/issues/34): the screenshots, then the video. Each came with its evidence: the checks before and after, and live checks in the cluster. CI was green on every PR from [#38](https://github.com/sela27/speedata-home-assignments/pull/38), where it arrived. Each PR was squash-merged once I had approved it.
+6. **Pull request (`pr`).** One PR per round up to [#51](https://github.com/sela27/speedata-home-assignments/pull/51), then one per ticket, and four for [#34](https://github.com/sela27/speedata-home-assignments/issues/34): my two subtitle changes, the screenshots, then the video. Every PR but those two came with its evidence: the checks before and after, and live checks in the cluster. CI was green on every PR from [#38](https://github.com/sela27/speedata-home-assignments/pull/38), where it arrived. Each PR was squash-merged once I had approved it.
 
 What I did myself:
 
-- Every decision in grilling, and the answers to the questions the agents raised in tickets and PRs.
-- Every approval: none of the 22 PRs below reached `main` without my go-ahead.
-- The `ready-for-human` tickets: Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's [screenshots and video](#5-proof-of-the-gitops-flow) ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)).
-- `0-network`, run elevated: the one step that needs admin rights.
-- The Bring-up rehearsal from scratch, following only this README ([#31](https://github.com/sela27/speedata-home-assignments/issues/31#issuecomment-6720947763)).
+- **Every decision:** the ones in grilling, and the answers to the questions the agents raised in tickets and PRs.
+- **Every approval:** none of the 22 PRs below reached `main` without my go-ahead.
+- **The `ready-for-human` tickets:** Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's [screenshots and video](#5-proof-of-the-gitops-flow) ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)).
+- **`0-network`, run elevated:** the one step that needs admin rights.
+- **The Bring-up rehearsal:** from scratch, following only this README ([#31](https://github.com/sela27/speedata-home-assignments/issues/31#issuecomment-6720947763)).
 
 The PRs, and the tickets each one implemented:
 
