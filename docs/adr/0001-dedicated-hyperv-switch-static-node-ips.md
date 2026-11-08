@@ -10,4 +10,5 @@ Multipass's default network addresses VMs over DHCP, and those addresses drift, 
 
 ## Consequences
 
-- **Independent of the Multipass driver**: under `hcs` (Multipass 1.17) the default network is a per-zone network, and in the #4 spike one VM restart changed its address; under the older `hyperv` driver it was the Default Switch, whose subnet is re-randomised on every Windows reboot.
+- **Independent of the Multipass driver**: under `hcs` (Multipass 1.17) the default network is a per-zone network, and in the [#4](https://github.com/sela27/speedata-home-assignments/issues/4) spike one VM restart changed its address; under the older `hyperv` driver it was the Default Switch, whose subnet is re-randomised on every Windows reboot.
+- **How the static IP is applied**: the Node network NIC must be found by a fixed MAC ([#18](https://github.com/sela27/speedata-home-assignments/issues/18)) and set up without `netplan apply` ([#52](https://github.com/sela27/speedata-home-assignments/issues/52)), as the README's [problems with the Node network and the VMs](../../README.md#the-node-network-and-the-vms) explain.
