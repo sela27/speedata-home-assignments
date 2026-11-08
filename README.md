@@ -212,7 +212,7 @@ In a window that is not elevated, it stops before deleting anything: `-RemoveSwi
 
 ### If a step fails
 
-- `1-vms` can stop with `launch failed: ... timed out waiting for initialization to complete`. The VM itself usually finished. But cloud-init's `netplan apply` renewed its Uplink address during the launch, and Multipass kept waiting for SSH at the old one. A re-run then stops at that VM with `exists but is not on the Node network`. Remove only that VM, then run `1-vms` again. It leaves the other VMs unchanged and creates this one in about a minute:
+- `1-vms` can stop with `launch failed: ... timed out waiting for initialization to complete`. When that happened, Multipass had given up, not the VM: cloud-init's `netplan apply` renewed the VM's Uplink address during the launch, and Multipass kept waiting for SSH at the old one. A re-run then stops at that VM with `exists but is not on the Node network`. Remove only that VM, then run `1-vms` again. It leaves the other VMs unchanged and creates this one in about a minute:
 
   ```powershell
   multipass delete --purge skywatch-worker2   # the VM named in the error
