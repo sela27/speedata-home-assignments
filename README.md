@@ -212,13 +212,6 @@ In a window that is not elevated, it stops before deleting anything: `-RemoveSwi
 
 ### If a step fails
 
-- `1-vms` can stop with `launch failed: ... timed out waiting for initialization to complete`. When that happened, Multipass had given up, not the VM: cloud-init's `netplan apply` renewed the VM's Uplink address during the launch, and Multipass kept waiting for SSH at the old one. A re-run then stops at that VM with `exists but is not on the Node network`. Remove only that VM, then run `1-vms` again. It leaves the other VMs unchanged and creates this one in about a minute:
-
-  ```powershell
-  multipass delete --purge skywatch-worker2   # the VM named in the error
-  .\scripts\1-vms.ps1
-  ```
-
 - After the host moves to another network, ArgoCD can show `lookup github.com ... server misbehaving`: CoreDNS still forwards to the old network's DNS servers. Restart it with `kubectl --kubeconfig .state\kubeconfig -n kube-system rollout restart deployment/coredns`.
 - After a host reboot, `multipass list` may show a VM `Stopped`. Run `.\scripts\1-vms.ps1`: it starts it. The addresses are fixed, so the kubeconfig and the URLs keep working.
 
@@ -548,8 +541,8 @@ Each problem with what I saw, its cause and its fix, grouped by area, with a lin
 - **The Multipass driver is `hcs`, not `hyperv`.** `multipass get local.driver` printed `hcs`, where the spec had assumed `hyperv`. Multipass 1.17 replaced `hyperv` with `hcs`, on the same hypervisor, and made it the Windows default, so I stayed on it ([#3](https://github.com/sela27/speedata-home-assignments/issues/3#issuecomment-6665771987)).
 - **The Uplink isn't on the Default Switch, and its address changes.** In the Node network spike, a VM's Uplink sat on Multipass's own network, 10.97.0.0/24, and one `multipass restart` moved it from 10.97.0.27 to 10.97.0.119. Under `hcs`, each Uplink gets its address from Multipass's DHCP, on one subnet per zone. The Node network design held, and [ADR-0001](docs/adr/0001-dedicated-hyperv-switch-static-node-ips.md) and the spec now put the Uplink on Multipass's own network ([#17](https://github.com/sela27/speedata-home-assignments/issues/17#issuecomment-6666355954), [#37](https://github.com/sela27/speedata-home-assignments/pull/37)).
 - **A VM can't ping the host on the Node network.** In the same spike, a ping from the VM to the host at 192.168.60.1 failed, while the host could ping the VM. The host's new `vEthernet (skywatch)` adapter is on Windows' Public firewall profile, which blocks inbound ICMP. Not changed: no flow needs a VM to reach the host ([#17](https://github.com/sela27/speedata-home-assignments/issues/17#issuecomment-6666355954), [#37](https://github.com/sela27/speedata-home-assignments/pull/37)).
-- **The Node network NIC's name isn't stable.** On the first three VMs it was `eth1` on the control plane but `cirename0` on both workers, where the spike had said to give K3s `eth1`. Hyper-V presents a VM's two NICs in random order, and when the kernel names the Node network NIC `eth0`, cloud-init renames it `cirename0` to give `eth0` to the Uplink. `1-vms` now has netplan find the NIC by its fixed MAC and name it `skywatch0`, which K3s uses ([#18](https://github.com/sela27/speedata-home-assignments/issues/18#issuecomment-6668763704), [#39](https://github.com/sela27/speedata-home-assignments/pull/39)).
-- **Multipass loses a VM's address when its Uplink lease renews.** In the rehearsal a `1-vms` launch failed with `timed out waiting for initialization to complete`, though the VM was complete, and earlier a `netplan apply` by hand had left `multipass exec` timing out ([#39](https://github.com/sela27/speedata-home-assignments/pull/39)). Both times netplan renewed the Uplink's DHCP lease, and Multipass kept trying SSH at the old address. Not fixed yet ([#52](https://github.com/sela27/speedata-home-assignments/issues/52)): the workaround, deleting only that VM and running `1-vms` again, is in [If a step fails](#if-a-step-fails).
+- **The Node network NIC's name isn't stable.** On the first three VMs it was `eth1` on the control plane but `cirename0` on both workers, where the spike had said to give K3s `eth1`. Hyper-V presents a VM's two NICs in random order, and when the kernel names the Node network NIC `eth0`, cloud-init renames it `cirename0` to give `eth0` to the Uplink. `1-vms` now finds the NIC by its fixed MAC and names it `skywatch0`, which K3s uses ([#18](https://github.com/sela27/speedata-home-assignments/issues/18#issuecomment-6668763704), [#39](https://github.com/sela27/speedata-home-assignments/pull/39)).
+- **Multipass picked a stale Uplink address.** In the rehearsal, a `1-vms` launch failed with `timed out waiting for initialization to complete`. The VM itself was complete. Earlier, a `netplan apply` by hand had left `multipass exec` timing out ([#39](https://github.com/sela27/speedata-home-assignments/pull/39)). Both times, `netplan apply` had reconfigured the Uplink too. The Uplink dropped its DHCP lease and got a new address. In the failed launch, the VM leased 10.97.0.5, then 10.97.0.223 after `netplan apply`. The host's neighbor table then had two entries for the Uplink's MAC: 10.97.0.223 and 10.97.0.26. The VM never leased 10.97.0.26. Which part of Windows wrote that entry is unknown. When Hyper-V gives Multipass no address for a VM, Multipass's `hcs` driver looks up the Uplink's MAC in the neighbor table. On every attempt, the driver takes the first entry, not the newest. 10.97.0.26 came first, so every SSH attempt went there until the 5-minute timeout. On a VM's first boot `1-vms` now sets up only the Node network NIC, with `ip` instead of `netplan apply`, so the Uplink keeps its first address and its MAC has one entry ([#52](https://github.com/sela27/speedata-home-assignments/issues/52), [#59](https://github.com/sela27/speedata-home-assignments/pull/59)).
 
 ### The cluster and the ArgoCD bootstrap
 
@@ -594,17 +587,16 @@ Each problem with what I saw, its cause and its fix, grouped by area, with a lin
 
 Most important first. The spec ([issue #1](https://github.com/sela27/speedata-home-assignments/issues/1)) left most of them out of scope.
 
-1. **Fix [#52](https://github.com/sela27/speedata-home-assignments/issues/52), the `1-vms` launch timeout.** Bring-up can stop at a VM launch today, and the way back is a manual `multipass delete`.
-2. **TLS, with cert-manager.** All three sites are plain HTTP today, the ArgoCD and Grafana admin logins included.
-3. **External Secrets, backed by a real secret store.** Ansible creates the Grafana Secret, so ArgoCD doesn't track it and rotating it is manual, as [ADR-0002](docs/adr/0002-bootstrap-created-secret-over-sealed-secrets.md) says.
-4. **NetworkPolicies.** Any pod in the cluster can reach the backend today, and only the frontend and Prometheus need to.
-5. **Alertmanager, with a receiver.** The two alerts notify no one today: they show only in Prometheus and Grafana.
-6. **An HPA on request rate, through prometheus-adapter.** The CPU target relies on a CPU request set low for the demo, and a page's CPU cost depends on the host; the backend already exports its request rate.
-7. **Coalescing a city's concurrent cache misses, or a shared cache.** A cold backend pod makes one Open-Meteo call per waiting thread for the same city, about twice as many since [#50](https://github.com/sela27/speedata-home-assignments/pull/50), against a free limit of 10,000 a day.
-8. **Persistent Prometheus.** Its data is in an emptyDir today, so a new Prometheus pod loses the metrics.
-9. **A self-managed ArgoCD.** Upgrading ArgoCD means re-running `2-cluster` by hand, outside the Key flow.
-10. **Terraform for the in-cluster bootstrap.** Ansible's `gitops_bootstrap` role does it today, and Terraform would plan each change before it lands (see [Bonuses](#bonuses)).
-11. **macOS and Linux hosts.** Every Bring-up step is a Windows PowerShell script, the Node network needs a Hyper-V switch, and the Ansible image is amd64 only.
+1. **TLS, with cert-manager.** All three sites are plain HTTP today, the ArgoCD and Grafana admin logins included.
+2. **External Secrets, backed by a real secret store.** Ansible creates the Grafana Secret, so ArgoCD doesn't track it and rotating it is manual, as [ADR-0002](docs/adr/0002-bootstrap-created-secret-over-sealed-secrets.md) says.
+3. **NetworkPolicies.** Any pod in the cluster can reach the backend today, and only the frontend and Prometheus need to.
+4. **Alertmanager, with a receiver.** The two alerts notify no one today: they show only in Prometheus and Grafana.
+5. **An HPA on request rate, through prometheus-adapter.** The CPU target relies on a CPU request set low for the demo, and a page's CPU cost depends on the host; the backend already exports its request rate.
+6. **Coalescing a city's concurrent cache misses, or a shared cache.** A cold backend pod makes one Open-Meteo call per waiting thread for the same city, about twice as many since [#50](https://github.com/sela27/speedata-home-assignments/pull/50), against a free limit of 10,000 a day.
+7. **Persistent Prometheus.** Its data is in an emptyDir today, so a new Prometheus pod loses the metrics.
+8. **A self-managed ArgoCD.** Upgrading ArgoCD means re-running `2-cluster` by hand, outside the Key flow.
+9. **Terraform for the in-cluster bootstrap.** Ansible's `gitops_bootstrap` role does it today, and Terraform would plan each change before it lands (see [Bonuses](#bonuses)).
+10. **macOS and Linux hosts.** Every Bring-up step is a Windows PowerShell script, the Node network needs a Hyper-V switch, and the Ansible image is amd64 only.
 
 ## Where to look
 
