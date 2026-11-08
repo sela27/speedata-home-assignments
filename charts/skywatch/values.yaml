@@ -7,7 +7,7 @@ frontend:
   image:
     repository: ghcr.io/sela27/skywatch-frontend
     # The Tag bump in CI sets this to the full commit SHA.
-    tag: "ae5adc347d90503509bd63dcbb06ccc5fec105b4"
+    tag: "34d748c00d1e55cf8c35bd21704ddf208668df81"
   config:
     # The backend's internal Service (templates/backend-service.yaml).
     BACKEND_URL: http://skywatch-backend
@@ -26,7 +26,7 @@ backend:
   image:
     repository: ghcr.io/sela27/skywatch-backend
     # The Tag bump in CI sets this to the full commit SHA.
-    tag: "ae5adc347d90503509bd63dcbb06ccc5fec105b4"
+    tag: "34d748c00d1e55cf8c35bd21704ddf208668df81"
   config:
     GEOCODING_URL: https://geocoding-api.open-meteo.com/v1/search
     FORECAST_URL: https://api.open-meteo.com/v1/forecast
