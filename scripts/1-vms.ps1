@@ -68,6 +68,7 @@ foreach ($node in $nodes) {
         # so cloud-init can find it by MAC. mode=manual: Multipass leaves that NIC to us.
         $mac = '52:54:00:60:00:' + $node.Address.Split('.')[-1]
         $cloudInit = Join-Path $stateDir "cloud-init-$($node.Name).yaml"
+        # In the here-string, `$ passes a $ through to the VM's shell.
         Set-Content -Path $cloudInit -Encoding Ascii -Value @"
 #cloud-config
 # Rendered by scripts/1-vms.ps1 for $($node.Name). cloud-init applies it once, at first boot.
@@ -91,9 +92,16 @@ write_files:
             dhcp4: false
             addresses: [$($node.Address)/24]
 runcmd:
-  # Applies the file now; later boots read it on their own. It also renews the Uplink's
-  # DHCP lease, so the Uplink address changes once during launch.
-  - netplan apply
+  # Sets up only the Node network NIC now, found by its MAC; later boots use the file above.
+  # It is still down and unmanaged here, so ip can rename it. Not netplan apply: that also
+  # re-leases the Uplink, the host then has two addresses for the Uplink's MAC, and Multipass
+  # can pick the stale one until the launch times out.
+  - |
+    set -e
+    nic=`$(ip -br link | awk '`$3 == "$mac" {print `$1}')
+    ip link set dev "`$nic" name skywatch0
+    ip link set dev skywatch0 up
+    ip address add $($node.Address)/24 dev skywatch0
 "@
         Invoke-Multipass launch $image --name $node.Name --cpus $node.Cpus --memory $node.Memory --disk $node.Disk `
             --network "name=$switchName,mode=manual,mac=$mac" --cloud-init $cloudInit
@@ -109,7 +117,7 @@ runcmd:
         $vm = Get-Instances | Where-Object name -eq $node.Name
     }
     if ($vm.ipv4 -notcontains $node.Address) {
-        throw "$($node.Name) exists but is not on the Node network at $($node.Address), so it is not a VM this script created, or its network is broken. Remove it (down.ps1), then re-run."
+        throw "$($node.Name) exists but is not on the Node network at $($node.Address), so it is not a VM this script created, or its network is broken. Remove it with 'multipass delete --purge $($node.Name)', then re-run."
     }
     Write-Host "$($node.Name) at $($node.Address): $done."
 }
