@@ -20,7 +20,7 @@ The VMs take 6 vCPU, 12 GiB RAM and up to 55 GiB of disk from the host:
 | `skywatch-worker1` | 192.168.60.11 | 2 | 4 GiB | 20 GiB |
 | `skywatch-worker2` | 192.168.60.12 | 2 | 4 GiB | 20 GiB |
 
-The disks grow as they fill: after two days of running, the three VMs had 15 GiB in use together. Docker Desktop's own VM comes on top of this. Tested on a host with 20 logical processors and 32 GB RAM.
+The disks grow as they fill: after two days of running, the three VMs had 15 GiB in use together. Docker Desktop's own VM comes on top of this. Tested on a host with 20 logical processors and 32 GiB RAM.
 
 Bring-up writes everything it generates (the SSH key pair, the host kubeconfig, rendered cloud-init files) under `.state/`, which Git ignores.
 
@@ -52,7 +52,13 @@ Do these once, before the first script:
    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
    ```
 
-   Windows 11 Home can't run Hyper-V.
+   `0-network` also needs Hyper-V's PowerShell module, which comes with Hyper-V's management tools: without it, the script's `#Requires -Modules Hyper-V` line stops it. After the restart, if `Get-Module -ListAvailable Hyper-V` lists nothing, add the module in an elevated window, then check again in a new window:
+
+   ```powershell
+   Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
+   ```
+
+   Or, in **Turn Windows features on or off**, under **Hyper-V** and **Hyper-V Management Tools**, select **Hyper-V Module for Windows PowerShell**.
 3. **Install the tools** in the table. The Multipass installer asks for administrator rights. Then open a new PowerShell window, so that `PATH` has them.
 4. **Docker Desktop running.** It doesn't start by itself after the install: start it from the Start menu and accept its terms. `docker version` must print a `Server` section.
 5. **Scripts allowed.** On Windows clients, the default execution policy is `Restricted`, which runs no scripts at all ([about_Execution_Policies](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1)). Allow local scripts for your user, once. This needs no elevation:
@@ -61,14 +67,14 @@ Do these once, before the first script:
    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
    ```
 
-   To change nothing that lasts, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` in each new window instead. `RemoteSigned` runs the scripts of a `git clone`. It blocks the scripts of a ZIP downloaded in a browser, which marks them as from the internet: unblock those with `Get-ChildItem -Recurse | Unblock-File`.
+   To change nothing that lasts, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` in each new window instead. A `CurrentUser` policy belongs to that user only: if your elevated window runs as another account, run the `-Scope Process` line there too. `RemoteSigned` runs the scripts of a `git clone`. It blocks the scripts of a ZIP downloaded in a browser, which marks them as from the internet: unblock those with `Get-ChildItem -Recurse | Unblock-File`.
 6. **One elevated window.** `0-network` needs **Run as administrator**, because it creates a Hyper-V switch. Everything else runs in a normal window.
 
 ## Bring-up
 
 Run each step from the repository root in Windows PowerShell. Every script is safe to re-run: if one fails, fix what its error names, then run the same step again.
 
-### 1. Clone the repository
+### Clone the repository
 
 ```powershell
 git clone https://github.com/sela27/speedata-home-assignments.git
@@ -78,14 +84,15 @@ cd speedata-home-assignments
 ArgoCD deploys what is on `main` on GitHub, not what is in your clone. A local edit changes nothing in the cluster until it reaches `main` (the Key flow).
 
 - **Expected:** a `speedata-home-assignments` folder. The commands below run in it.
-- **Takes:** seconds (1.5 s measured).
+- **Takes:** seconds.
 - **Re-run:** not needed. `git pull` updates the clone.
 
-### 2. The Node network: `0-network` (elevated)
+### 0. The Node network: `0-network` (elevated)
 
-In a PowerShell window opened with **Run as administrator**, in the repository root:
+Open a PowerShell window with **Run as administrator**. It starts in `C:\Windows\System32`, so `cd` to your clone first. The path below fits a clone in your home folder, where a new normal window starts:
 
 ```powershell
+cd $HOME\speedata-home-assignments
 .\scripts\0-network.ps1
 ```
 
@@ -99,12 +106,11 @@ It creates the internal Hyper-V switch `skywatch` and gives the host 192.168.60.
   ```
 
   In a window that is not elevated, the script stops at once, because of its `#Requires -RunAsAdministrator` line, and changes nothing.
-- **Takes:** not timed yet.
 - **Re-run:** safe. It prints `Node network switch 'skywatch' already exists; leaving it unchanged.` and `'vEthernet (skywatch)' already has 192.168.60.1/24.` If a switch named `skywatch` exists that it didn't create, it stops and changes nothing.
 
 You can close the elevated window now.
 
-### 3. The VMs: `1-vms`
+### 1. The VMs: `1-vms`
 
 In a normal PowerShell window:
 
@@ -123,10 +129,10 @@ It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs w
   ```
 
   `multipass list` then shows the three VMs `Running`, each with its 192.168.60.x address.
-- **Takes:** about 3 minutes (163 to 203 s in three runs), once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first (not timed yet).
+- **Takes:** about 3 minutes, once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first.
 - **Re-run:** safe. A running VM is left unchanged (`skywatch-cp at 192.168.60.10: already running; left unchanged.`). A stopped VM, for example after a host reboot, is started. A re-run never resizes a VM. The script stops if `.state\id_ed25519` is missing while the VMs exist, because they accept only that key: restore the key, or run `down` first.
 
-### 4. The cluster and ArgoCD: `2-cluster`
+### 2. The cluster and ArgoCD: `2-cluster`
 
 ```powershell
 .\scripts\2-cluster.ps1
@@ -141,7 +147,7 @@ It builds the Ansible container image from `ansible/` and runs the playbook `ans
 
 From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatch` app and the `monitoring` app (Prometheus and Grafana).
 
-- **Expected:** each Ansible task, then a `PLAY RECAP` with `unreachable=0 failed=0` for `localhost`, `skywatch-cp`, `skywatch-worker1` and `skywatch-worker2`. Two `[WARNING]` lines and a `[DEPRECATION WARNING]` on the ArgoCD task are normal: the helm diff plugin isn't installed, and the Helm module flags its own deprecated return value. It ends with the URLs and the password commands (see [URLs and passwords](#urls-and-passwords)):
+- **Expected:** `Building the Ansible container image 'skywatch-ansible'...`, then each Ansible task, then a `PLAY RECAP` with `unreachable=0 failed=0` for `localhost`, `skywatch-cp`, `skywatch-worker1` and `skywatch-worker2`. Two `[WARNING]` lines and a `[DEPRECATION WARNING]` on the ArgoCD task are normal: the helm diff plugin isn't installed, and the Helm module flags its own deprecated return value. It ends with the URLs and the password commands (see [URLs and passwords](#urls-and-passwords)):
 
   ```text
   K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From this host:
@@ -150,7 +156,7 @@ From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatc
     ...
   ```
 
-- **Takes:** about 5 minutes on the owner's connection, measured step by step: the K3s server about 1 minute, the workers 45 s, and ArgoCD about 3 minutes while each worker pulls its 229 MB image. The first run also builds the Ansible image (not timed yet). After that, ArgoCD needs a few more minutes for the apps. The `monitoring` app took about 4 minutes on its first sync, which ArgoCD retried once while images were still pulling.
+- **Takes:** about 5 minutes on the owner's connection, most of it while the workers pull ArgoCD's image. The first run also builds the Ansible image. After that, ArgoCD needs a few more minutes for the apps: about 4 minutes for `monitoring`, the slowest.
 - **Re-run:** safe. On a healthy cluster it reports `changed=0` on all four hosts (see the [checklist](#verification-checklist)). It installs K3s only where it is missing or at another version, and restarts K3s only when its config changed. It never rotates the Grafana password. It puts the root Application back if it was edited by hand. A first run that stopped halfway, for example on an image-pull timeout, completes when run again.
 
 ### Load for the dashboard and the HPA: `load` (optional)
@@ -159,9 +165,9 @@ From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatc
 .\scripts\load.ps1
 ```
 
-It runs the k6 load generator ([scripts/load.js](scripts/load.js)) in a pinned `grafana/k6:2.3.0` container. For 5 minutes k6 asks the frontend's Ingress for pages, 10 cities in turn, at up to 45 pages a second. It calls nothing else: Open-Meteo sees only the backend's cache misses.
+It runs the k6 load generator ([scripts/load.js](scripts/load.js)) in a pinned `grafana/k6:2.3.0` container. For 5 minutes k6 asks the frontend's Ingress for pages, 10 cities in turn, at up to 45 pages a second. It calls nothing else: Open-Meteo sees only the backend's cache misses, far under its free limit of 10,000 calls a day.
 
-- **Expected:** k6's progress, then its summary. The backend HPA scales from 2 replicas to 3 about 1.5 minutes in, and back to 2 about 5 minutes after the load ends. In the last run, 27 of 12,172 pages failed (0.22%): pages whose Open-Meteo call passed the backend's 5 s timeout while its caches were cold. The run made 107 Open-Meteo calls, against the free limit of 10,000 a day. Ctrl+C stops k6 early: it prints its summary, exits with code 105, and the script reports that exit code as a failure.
+- **Expected:** k6's progress, then its summary. The backend HPA scales from 2 replicas to 3 about 1.5 minutes in, and back to 2 about 5 minutes after the load ends: `kubectl --kubeconfig .state\kubeconfig -n skywatch get hpa` shows the `REPLICAS`. A few pages may fail while the backend's caches are cold, when their Open-Meteo call passes the backend's 5 s timeout. Ctrl+C stops k6 early: it prints its summary, exits with code 105, and the script reports that exit code as a failure.
 - **Takes:** 5 minutes.
 - **Re-run:** safe once the previous run has ended. While one runs, a second can't start: its container name is taken.
 
@@ -182,20 +188,27 @@ It deletes and purges the three VMs, and no other Multipass instance. The switch
   Left the Node network switch 'skywatch' in place. To remove it too, run down.ps1 -RemoveSwitch elevated.
   ```
 
-- **Takes:** not timed yet.
 - **Re-run:** safe. It prints `skywatch-cp does not exist; nothing to delete.` for each VM.
 
-To remove the switch and the host's 192.168.60.1 too, run it in an elevated window:
+To remove the switch and the host's 192.168.60.1 too, run it in an elevated window, in your clone (`cd` there first, as for `0-network`):
 
 ```powershell
 .\scripts\down.ps1 -RemoveSwitch
 ```
 
-It removes only a switch that `0-network` created. In a window that is not elevated, it stops before deleting anything: `-RemoveSwitch needs an elevated PowerShell (Run as Administrator). Nothing was changed.`
+It removes only a switch that `0-network` created, and prints:
+
+```text
+Deleted skywatch-cp.
+Deleted skywatch-worker1.
+Deleted skywatch-worker2.
+Removed the Node network switch 'skywatch' and the host's address on it.
+```
+
+In a window that is not elevated, it stops before deleting anything: `-RemoveSwitch needs an elevated PowerShell (Run as Administrator). Nothing was changed.`
 
 ### If a step fails
 
-- Run the same step again: every script is safe to re-run.
 - After the host moves to another network, ArgoCD can show `lookup github.com ... server misbehaving`: CoreDNS still forwards to the old network's DNS servers. Restart it with `kubectl --kubeconfig .state\kubeconfig -n kube-system rollout restart deployment/coredns`.
 - After a host reboot, `multipass list` may show a VM `Stopped`. Run `.\scripts\1-vms.ps1`: it starts it. The addresses are fixed, so the kubeconfig and the URLs keep working.
 
@@ -306,14 +319,8 @@ Run these from the repository root after Bring-up. Each item gives a command and
    curl.exe -s http://grafana.192-168-60-11.sslip.io/api/health
    ```
 
-   SkyWatch prints `<h2>Haifa, Israel</h2>` and its footer, `Frontend <sha> · Backend <sha>`: the commit the running images were built from. ArgoCD answers `{"Version":"v3.6.1"}`, and Grafana `"database": "ok"`. Then open the three URLs in a browser, and log in to ArgoCD and Grafana as `admin` with the [passwords](#urls-and-passwords).
-6. **The dashboard has data under load.**
-
-   ```powershell
-   .\scripts\load.ps1
-   ```
-
-   While it runs, open <http://grafana.192-168-60-11.sslip.io/d/skywatch/skywatch>. Every panel shows data: about 45 requests a second per service, an error rate near 0, the latency percentiles, Open-Meteo's p95, a cache hit ratio near 1, the backend's CPU against its request, and the replicas going from 2 to 3. About 5 minutes after the load ends, `kubectl --kubeconfig .state\kubeconfig -n skywatch get hpa` shows `REPLICAS` back at 2.
+   SkyWatch prints `<h2>Haifa, Israel</h2>` and its footer, the line with `Frontend <sha>` and `Backend <sha>`: the commit each running image was built from. ArgoCD answers `{"Version":"v3.6.1"}`, and Grafana `"database": "ok"`. Then open the three URLs in a browser, and log in to ArgoCD and Grafana as `admin` with the [passwords](#urls-and-passwords).
+6. **The dashboard has data under load.** Run [`.\scripts\load.ps1`](#load-for-the-dashboard-and-the-hpa-load-optional). While it runs, open <http://grafana.192-168-60-11.sslip.io/d/skywatch/skywatch>. Every panel shows data: about 45 requests a second per service, an error rate near 0, the latency percentiles, Open-Meteo's p95, a cache hit ratio near 1, the backend's CPU against its request, and the replicas going from 2 to 3.
 7. **A second `2-cluster` run changes nothing.**
 
    ```powershell
