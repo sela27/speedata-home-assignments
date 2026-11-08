@@ -123,7 +123,7 @@ It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs w
   ```
 
   `multipass list` then shows the three VMs `Running`, each with its 192.168.60.x address.
-- **Takes:** 3 to 3.5 minutes (163 to 203 s in three runs), once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first (not timed yet).
+- **Takes:** about 3 minutes (163 to 203 s in three runs), once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first (not timed yet).
 - **Re-run:** safe. A running VM is left unchanged (`skywatch-cp at 192.168.60.10: already running; left unchanged.`). A stopped VM, for example after a host reboot, is started. A re-run never resizes a VM. The script stops if `.state\id_ed25519` is missing while the VMs exist, because they accept only that key: restore the key, or run `down` first.
 
 ### 4. The cluster and ArgoCD: `2-cluster`
