@@ -36,7 +36,7 @@ Tested with these versions. Each check runs in a normal Windows PowerShell windo
 | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) | 4.80.0 (Engine 29.6.1), WSL 2 backend | `docker version` prints a `Server` section | runs the Ansible container (`2-cluster`) and k6 (`load`) |
 | [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/) | v1.36.0 | `kubectl version --client` | the passwords and the checks. Use 1.36 to 1.38, within one minor version of K3s v1.37. |
 | [Git](https://git-scm.com/downloads/win) | 2.53.0 | `git --version` | the clone |
-| OpenSSH client | 9.5p2, built into Windows 11 | `Get-Command ssh-keygen` | `1-vms` generates the SSH key that Ansible logs in with |
+| OpenSSH client | 9.5p2, built into Windows 11 | `Get-Command ssh-keygen` finds it, and `ssh -V` prints the version | `1-vms` generates the SSH key that Ansible logs in with |
 | [Helm](https://helm.sh/docs/intro/install/) (optional) | v4.1.4 | `helm version` | not used by any Bring-up step: `2-cluster` uses the Helm v4.3.1 inside the Ansible container. Only for running CI's chart checks locally, such as `helm lint --strict charts/skywatch`. |
 
 `curl.exe`, used in the checks below, ships with Windows 11.
@@ -89,10 +89,10 @@ ArgoCD deploys what is on `main` on GitHub, not what is in your clone. A local e
 
 ### 0. The Node network: `0-network` (elevated)
 
-Open a PowerShell window with **Run as administrator**. It starts in `C:\Windows\System32`, so `cd` to your clone first. The path below fits a clone in your home folder, where a new normal window starts:
+Open a PowerShell window with **Run as administrator**. It starts in `C:\Windows\System32`, so `cd` to your clone first: `Get-Location` in your normal window shows its path. For a clone made where a new normal window starts, your home folder:
 
 ```powershell
-cd $HOME\speedata-home-assignments
+cd "$HOME\speedata-home-assignments"
 .\scripts\0-network.ps1
 ```
 
@@ -105,7 +105,8 @@ It creates the internal Hyper-V switch `skywatch` and gives the host 192.168.60.
   Assigned 192.168.60.1/24 to 'vEthernet (skywatch)'.
   ```
 
-  In a window that is not elevated, the script stops at once, because of its `#Requires -RunAsAdministrator` line, and changes nothing.
+  In a window that is not elevated, the script stops at once and changes nothing: `The script '0-network.ps1' cannot be run because it contains a "#requires" statement for running as Administrator.`
+- **Takes:** seconds.
 - **Re-run:** safe. It prints `Node network switch 'skywatch' already exists; leaving it unchanged.` and `'vEthernet (skywatch)' already has 192.168.60.1/24.` If a switch named `skywatch` exists that it didn't create, it stops and changes nothing.
 
 You can close the elevated window now.
@@ -120,7 +121,7 @@ In a normal PowerShell window:
 
 It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs with Multipass, one after the other. Each VM has two NICs. Its default NIC, on Multipass's own network, is its Uplink to the internet. The second NIC, on the `skywatch` switch, gets the VM's fixed Node network address through cloud-init. cloud-init also installs the public key, so Ansible can log in.
 
-- **Expected:** `Generated the SSH key pair ...\.state\id_ed25519.`, Multipass's progress for each VM (`Launched: skywatch-cp`), and one line per VM:
+- **Expected:** `Generated the SSH key pair ...\.state\id_ed25519.`, Multipass's progress for each VM (`Launched: skywatch-cp in zone1`), and one line per VM:
 
   ```text
   skywatch-cp at 192.168.60.10: created.
@@ -129,7 +130,7 @@ It generates the SSH key pair `.state\id_ed25519`, then launches the three VMs w
   ```
 
   `multipass list` then shows the three VMs `Running`, each with its 192.168.60.x address.
-- **Takes:** about 3 minutes, once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first.
+- **Takes:** about 3 minutes, about a minute per VM, once Multipass has the Ubuntu 24.04 image. The first launch on a machine downloads the image first.
 - **Re-run:** safe. A running VM is left unchanged (`skywatch-cp at 192.168.60.10: already running; left unchanged.`). A stopped VM, for example after a host reboot, is started. A re-run never resizes a VM. The script stops if `.state\id_ed25519` is missing while the VMs exist, because they accept only that key: restore the key, or run `down` first.
 
 ### 2. The cluster and ArgoCD: `2-cluster`
@@ -147,7 +148,7 @@ It builds the Ansible container image from `ansible/` and runs the playbook `ans
 
 From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatch` app and the `monitoring` app (Prometheus and Grafana).
 
-- **Expected:** `Building the Ansible container image 'skywatch-ansible'...`, then each Ansible task, then a `PLAY RECAP` with `unreachable=0 failed=0` for `localhost`, `skywatch-cp`, `skywatch-worker1` and `skywatch-worker2`. Two `[WARNING]` lines and a `[DEPRECATION WARNING]` on the ArgoCD task are normal: the helm diff plugin isn't installed, and the Helm module flags its own deprecated return value. It ends with the URLs and the password commands (see [URLs and passwords](#urls-and-passwords)):
+- **Expected:** `Building the Ansible container image 'skywatch-ansible'...`, then each Ansible task, then a `PLAY RECAP` with `unreachable=0 failed=0` for `localhost`, `skywatch-cp`, `skywatch-worker1` and `skywatch-worker2`. On the ArgoCD task, a `[DEPRECATION WARNING]` and a `[WARNING]` about it are normal: the Helm module flags its own deprecated return value. A re-run adds a second `[WARNING]`, because the helm diff plugin isn't installed. It ends with the URLs and the password commands (see [URLs and passwords](#urls-and-passwords)):
 
   ```text
   K3s and ArgoCD are up. ArgoCD deploys the apps in apps/ from Git, on main. From this host:
@@ -156,8 +157,8 @@ From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatc
     ...
   ```
 
-- **Takes:** about 5 minutes on the owner's connection, most of it while the workers pull ArgoCD's image. The first run also builds the Ansible image. After that, ArgoCD needs a few more minutes for the apps: about 4 minutes for `monitoring`, the slowest.
-- **Re-run:** safe. On a healthy cluster it reports `changed=0` on all four hosts (see the [checklist](#verification-checklist)). It installs K3s only where it is missing or at another version, and restarts K3s only when its config changed. It never rotates the Grafana password. It puts the root Application back if it was edited by hand. A first run that stopped halfway, for example on an image-pull timeout, completes when run again.
+- **Takes:** about 2.5 minutes. The first run on a machine also builds the Ansible image. After that, ArgoCD needs about 1.5 more minutes until its three apps are `Synced` and `Healthy`. On the way they show `OutOfSync`, `Progressing` or `Degraded` while images pull: that is normal.
+- **Re-run:** safe, and takes seconds. On a healthy cluster it reports `changed=0` on all four hosts (see the [checklist](#verification-checklist)). It installs K3s only where it is missing or at another version, and restarts K3s only when its config changed. It never rotates the Grafana password. It puts the root Application back if it was edited by hand. A first run that stopped halfway, for example on an image-pull timeout, completes when run again.
 
 ### Load for the dashboard and the HPA: `load` (optional)
 
@@ -167,7 +168,7 @@ From then on ArgoCD deploys everything else from `apps/` on `main`: the `skywatc
 
 It runs the k6 load generator ([scripts/load.js](scripts/load.js)) in a pinned `grafana/k6:2.3.0` container. For 5 minutes k6 asks the frontend's Ingress for pages, 10 cities in turn, at up to 45 pages a second. It calls nothing else: Open-Meteo sees only the backend's cache misses, far under its free limit of 10,000 calls a day.
 
-- **Expected:** k6's progress, then its summary. The backend HPA scales from 2 replicas to 3 about 1.5 minutes in, and back to 2 about 5 minutes after the load ends: `kubectl --kubeconfig .state\kubeconfig -n skywatch get hpa` shows the `REPLICAS`. A few pages may fail while the backend's caches are cold, when their Open-Meteo call passes the backend's 5 s timeout. Ctrl+C stops k6 early: it prints its summary, exits with code 105, and the script reports that exit code as a failure.
+- **Expected:** k6's progress, then its summary. The backend HPA scales from 2 replicas to 3 about 2 minutes in, and back to 2 about 5 minutes after the load ends: `kubectl --kubeconfig .state\kubeconfig -n skywatch get hpa` shows the `REPLICAS`. A few pages may fail while the backend's caches are cold, when their Open-Meteo call passes the backend's 5 s timeout. Ctrl+C stops k6 early: it prints its summary, exits with code 105, and the script reports that exit code as a failure.
 - **Takes:** 5 minutes.
 - **Re-run:** safe once the previous run has ended. While one runs, a second can't start: its container name is taken.
 
@@ -188,6 +189,8 @@ It deletes and purges the three VMs, and no other Multipass instance. The switch
   Left the Node network switch 'skywatch' in place. To remove it too, run down.ps1 -RemoveSwitch elevated.
   ```
 
+  `multipass list` then prints `No instances found.`, unless you have other instances.
+- **Takes:** seconds.
 - **Re-run:** safe. It prints `skywatch-cp does not exist; nothing to delete.` for each VM.
 
 To remove the switch and the host's 192.168.60.1 too, run it in an elevated window, in your clone (`cd` there first, as for `0-network`):
@@ -208,6 +211,13 @@ Removed the Node network switch 'skywatch' and the host's address on it.
 In a window that is not elevated, it stops before deleting anything: `-RemoveSwitch needs an elevated PowerShell (Run as Administrator). Nothing was changed.`
 
 ### If a step fails
+
+- `1-vms` can stop with `launch failed: ... timed out waiting for initialization to complete`. The VM itself usually finished. But cloud-init's `netplan apply` renewed its Uplink address during the launch, and Multipass kept waiting for SSH at the old one. A re-run then stops at that VM with `exists but is not on the Node network`. Remove only that VM, then run `1-vms` again. It leaves the other VMs unchanged and creates this one in about a minute:
+
+  ```powershell
+  multipass delete --purge skywatch-worker2   # the VM named in the error
+  .\scripts\1-vms.ps1
+  ```
 
 - After the host moves to another network, ArgoCD can show `lookup github.com ... server misbehaving`: CoreDNS still forwards to the old network's DNS servers. Restart it with `kubectl --kubeconfig .state\kubeconfig -n kube-system rollout restart deployment/coredns`.
 - After a host reboot, `multipass list` may show a VM `Stopped`. Run `.\scripts\1-vms.ps1`: it starts it. The addresses are fixed, so the kubeconfig and the URLs keep working.
@@ -310,7 +320,7 @@ Run these from the repository root after Bring-up. Each item gives a command and
    kubectl --kubeconfig .state\kubeconfig -n argocd get applications
    ```
 
-   `monitoring`, `root` and `skywatch`, each `Synced` and `Healthy`. Right after `2-cluster`, give `monitoring` a few minutes. In the ArgoCD UI, each app shows the commit it synced, the latest on `main`.
+   `monitoring`, `root` and `skywatch`, each `Synced` and `Healthy`. Right after `2-cluster`, give them about 2 minutes. In the ArgoCD UI, each app shows the commit it synced, the latest on `main`.
 5. **The URLs work.**
 
    ```powershell
