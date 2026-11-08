@@ -2,7 +2,7 @@
 
 A small weather-query app (a Flask frontend and a backend API that calls Open-Meteo) running on a local multi-node K3s cluster, delivered through CI (GitHub Actions → GHCR) and GitOps (ArgoCD).
 
-> **Status: work in progress.** Two pieces of milestone M6 are still to come: the video of the Key flow ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)) and a final pass over the README ([#35](https://github.com/sela27/speedata-home-assignments/issues/35)).
+> **Status: work in progress.** One piece of milestone M6 is still to come: a final pass over the README ([#35](https://github.com/sela27/speedata-home-assignments/issues/35)).
 
 ## Chosen path
 
@@ -401,7 +401,7 @@ A pull request runs `lint-test` and builds both images without pushing them. A m
 
 #### Proof: one change, end to end
 
-On 8 November 2026 I changed the page's subtitle to "Current weather for any city, shipped by the Key flow" and merged it in [#55](https://github.com/sela27/speedata-home-assignments/pull/55). Its squash commit, [`ae5adc3`](https://github.com/sela27/speedata-home-assignments/commit/ae5adc347d90503509bd63dcbb06ccc5fec105b4), is the SHA to follow through the four screenshots below. Nobody ran kubectl or helm, or clicked Sync in ArgoCD.
+On 8 November 2026 I changed the page's subtitle to "Current weather for any city, shipped by the Key flow" and merged it in [#55](https://github.com/sela27/speedata-home-assignments/pull/55). Its squash commit, [`ae5adc3`](https://github.com/sela27/speedata-home-assignments/commit/ae5adc347d90503509bd63dcbb06ccc5fec105b4), is the SHA to follow through the four screenshots below. A [video](#the-video) of a second run follows them. Nobody ran kubectl or helm, or clicked Sync in ArgoCD.
 
 | Time (UTC+2) | What happened |
 | --- | --- |
@@ -427,6 +427,23 @@ From the merge to the new pods: 1 min 34 s. ArgoCD was quick this time: it polls
 4. **The new SHA in the footer**: the new subtitle, and `Frontend ae5adc3 · Backend ae5adc3`.
 
    ![SkyWatch with the new subtitle and the footer showing ae5adc3](docs/evidence/key-flow-4-footer.png)
+
+#### The video
+
+A second run, recorded on screen in real time with no cuts (4:16). In [#57](https://github.com/sela27/speedata-home-assignments/pull/57) I changed the subtitle again, to "Current weather for any city, shipped by the Key flow, taken by video". Its commit, [`9a7a8c7`](https://github.com/sela27/speedata-home-assignments/commit/9a7a8c70e60270a3b59323ab90eee664099d291c), took 2 min 1 s from the merge to the new pods. CI [run #63](https://github.com/sela27/speedata-home-assignments/actions/runs/42499242364) took 1 min 34 s, and ArgoCD synced on its own 17 s after the Tag bump, `358f437`.
+
+[![The Key flow on video, from the change to the new footer (YouTube, 4:16)](https://img.youtube.com/vi/ephiSol0TxE/maxresdefault.jpg)](https://www.youtube.com/watch?v=ephiSol0TxE)
+
+Most of the video is waiting for CI. To jump:
+
+| At | What you see |
+| --- | --- |
+| [0:02](https://www.youtube.com/watch?v=ephiSol0TxE&t=2s) | The subtitle change in the editor, pushed to a branch |
+| [0:24](https://www.youtube.com/watch?v=ephiSol0TxE&t=24s) | The pull request on GitHub, and its CI |
+| [2:10](https://www.youtube.com/watch?v=ephiSol0TxE&t=130s) | Squash and merge |
+| [2:16](https://www.youtube.com/watch?v=ephiSol0TxE&t=136s) | CI on `main`, up to the Tag bump |
+| [3:54](https://www.youtube.com/watch?v=ephiSol0TxE&t=234s) | ArgoCD syncs `skywatch` and rolls its pods: `Progressing`, then `Healthy` |
+| [4:10](https://www.youtube.com/watch?v=ephiSol0TxE&t=250s) | The page with the new subtitle, and `9a7a8c7` in the footer |
 
 ## Design decisions
 
@@ -498,7 +515,7 @@ What I did myself:
 
 - Every decision in grilling, and the answers to the questions the agents raised in tickets and PRs.
 - Every approval: none of the 15 PRs below reached `main` without my go-ahead.
-- The `ready-for-human` tickets: Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's [screenshots](#proof-one-change-end-to-end) and video ([#34](https://github.com/sela27/speedata-home-assignments/issues/34): the video is still to come).
+- The `ready-for-human` tickets: Multipass and Helm on the host ([#3](https://github.com/sela27/speedata-home-assignments/issues/3)), the GHCR packages' visibility ([#14](https://github.com/sela27/speedata-home-assignments/issues/14): they were public by default), and the Key flow's [screenshots and video](#proof-one-change-end-to-end) ([#34](https://github.com/sela27/speedata-home-assignments/issues/34)).
 - `0-network`, run elevated: the one step that needs admin rights.
 - The Bring-up rehearsal from scratch, following only this README ([#31](https://github.com/sela27/speedata-home-assignments/issues/31#issuecomment-6720947763)).
 
@@ -592,7 +609,7 @@ Most important first. The spec ([issue #1](https://github.com/sela27/speedata-ho
 ## Where to look
 
 - The spec: [issue #1](https://github.com/sela27/speedata-home-assignments/issues/1). Its sub-issues are the tickets, with their order of work.
-- Proof of the Key flow: [one change, end to end](#proof-one-change-end-to-end), in four screenshots
+- Proof of the Key flow: [one change, end to end](#proof-one-change-end-to-end), in four screenshots and a video
 - Key decisions: the [design decisions](#design-decisions) above, and the ADRs in [docs/adr/](docs/adr/)
 - The alerts, and how to trigger each one: [docs/alerts.md](docs/alerts.md)
 - Load for the dashboard and the HPA: `scripts\load.ps1` runs k6 on [scripts/load.js](scripts/load.js)
