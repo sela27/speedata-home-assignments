@@ -92,13 +92,16 @@ write_files:
             dhcp4: false
             addresses: [$($node.Address)/24]
 runcmd:
-  # Sets up only the Node network NIC now, found by its MAC; later boots use the file above.
-  # It is still down and unmanaged here, so ip can rename it. Not netplan apply: that also
-  # re-leases the Uplink, the host then has two addresses for the Uplink's MAC, and Multipass
-  # can pick the stale one until the launch times out.
+  # Sets up only the Node network NIC now, found by its MAC. Later boots use the file above.
+  # ip can't rename a NIC that is up, so the NIC goes down first.
+  # This doesn't use netplan apply. netplan apply also reconfigures the Uplink, which drops
+  # its DHCP lease and gets a new address. The host then has two neighbor entries for the
+  # Uplink's MAC, and Multipass can pick the stale one until the launch times out.
   - |
     set -e
     nic=`$(ip -br link | awk '`$3 == "$mac" {print `$1}')
+    [ -n "`$nic" ] || { echo "no NIC with MAC $mac" >&2; exit 1; }
+    ip link set dev "`$nic" down
     ip link set dev "`$nic" name skywatch0
     ip link set dev skywatch0 up
     ip address add $($node.Address)/24 dev skywatch0
